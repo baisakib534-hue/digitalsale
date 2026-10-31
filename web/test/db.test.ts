@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CATEGORIES } from '../lib/categories';
 import { getDb, closeDb } from '../lib/db';
+import { localDir } from '../lib/channelStore';
 import { seedIfEmpty } from '../db/seed';
 import type Database from 'better-sqlite3';
 
@@ -79,7 +80,12 @@ describe('database schema + seed integrity', () => {
       for (const f of files) {
         assert.equal(f.provider, 'local');
         assert.ok(f.local_path, 'local_path missing');
-        assert.ok(existsSync(join(process.cwd(), f.local_path)), `file missing on disk: ${f.local_path}`);
+        // Same resolution as the download route: bare filename via localDir(),
+        // with backward compat for old "storage/<file>" rows.
+        const rel = f.local_path.startsWith('storage/')
+          ? f.local_path.slice('storage/'.length)
+          : f.local_path;
+        assert.ok(existsSync(join(localDir(), rel)), `file missing on disk: ${f.local_path}`);
       }
     }
   });

@@ -5,6 +5,7 @@ import { randomId, hashPassword } from '../lib/crypto';
 import { slugify } from '../lib/format';
 import { CATEGORIES } from '../lib/categories';
 import { splitSale, DEFAULT_COMMISSION } from '../lib/affiliate';
+import { localDir } from '../lib/channelStore';
 
 /**
  * Demo seed: 1 seller + store, 10 forest-themed digital products across the
@@ -336,10 +337,16 @@ export function seedIfEmpty(db: Database.Database): void {
     now
   );
 
-  // Cover art → public/covers/*.svg
+  // Cover art → public/covers/*.svg (committed to the repo; the write below is a
+  // no-op on read-only filesystems like Vercel where the files already exist).
   const coversDir = join(process.cwd(), 'public', 'covers');
-  mkdirSync(coversDir, { recursive: true });
-  const storageDir = join(process.cwd(), 'storage');
+  try {
+    mkdirSync(coversDir, { recursive: true });
+  } catch {
+    /* read-only FS — covers are served from the committed files */
+  }
+  // Demo files live in the local file archive (LOCAL_STORAGE_DIR-aware).
+  const storageDir = localDir();
   mkdirSync(storageDir, { recursive: true });
 
   const insertProduct = db.prepare(
@@ -359,7 +366,11 @@ export function seedIfEmpty(db: Database.Database): void {
   PRODUCTS.forEach((p, i) => {
     const id = randomId();
     const coverFile = `${p.slug}.svg`;
-    writeFileSync(join(coversDir, coverFile), coverSvg(p), 'utf8');
+    try {
+      writeFileSync(join(coversDir, coverFile), coverSvg(p), 'utf8');
+    } catch {
+      /* read-only FS (Vercel) — cover is served from the committed public/covers file */
+    }
     const createdAt = new Date(Date.now() - (PRODUCTS.length - i) * 86400000 * 2).toISOString();
     insertProduct.run(id, storeId, p.title, p.slug, p.description, p.priceCents, p.category, p.tags, `/covers/${coverFile}`, createdAt);
     created.push({ id, slug: p.slug, title: p.title, priceCents: p.priceCents, commission: p.affiliate });
@@ -367,10 +378,10 @@ export function seedIfEmpty(db: Database.Database): void {
 
     // Demo downloadable file per product
     const fname = `${p.slug}-readme.txt`;
-    const content = `Thanks for purchasing "${p.title}" from Fern & Field on Mosshaw!\n\nThis is a demo file standing in for the real product download.\nIn production, sellers upload their real files and Mosshaw archives them\nto the Telegram storage channel (or local disk in dev).\n\nOrder support: hello@mosshaw.example\n`;
-    const localPath = `storage/${fname}`;
-    writeFileSync(join(process.cwd(), localPath), content, 'utf8');
-    insertFile.run(randomId(), id, fname, 'text/plain', Buffer.byteLength(content), localPath, now);
+    const content = `Thanks for purchasing "${p.title}" from Fern & Field on Digitalsale!\n\nThis is a demo file standing in for the real product download.\nIn production, sellers upload their real files and Digitalsale archives them\nto the Telegram storage channel (or local disk in dev).\n\nOrder support: hello@digitalsale.example\n`;
+    // Bare filename contract: the download route resolves via localDir().
+    writeFileSync(join(storageDir, fname), content, 'utf8');
+    insertFile.run(randomId(), id, fname, 'text/plain', Buffer.byteLength(content), fname, now);
   });
 
   // Demo orders at the 10% platform fee, one with affiliate attribution.
