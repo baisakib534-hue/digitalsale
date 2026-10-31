@@ -1,0 +1,88 @@
+import { NextResponse } from 'next/server';
+import { getDb } from '../../../lib/db';
+import { randomId } from '../../../lib/crypto';
+import { getSessionUserId } from '../../../lib/auth';
+import { paymentsConfigured, splitOrder } from '../../../lib/nowpayments';
+import { BRAND } from '../../../lib/brand';
+import {
+  getRefCode,
+  clearRefCookieHeader,
+  resolveAffiliate,
+} from '../../../lib/affiliate';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+interface CheckoutBody {
+  productId?: unknown;
+  email?: unknown;
+}
+
+/** Create a pending order for a published product. */
+export async function POST(req: Request) {
+  let body: CheckoutBody;
+  try {
+    body = (await req.json()) as CheckoutBody;
+  } catch {
+    return NextResponse.json({ error: 'invalid-json' }, { status: 400 });
+  }
+  const productId = typeof body.productId === 'string' ? body.productId : '';
+  if (!productId) return NextResponse.json({ error: 'missing-product' }, { status: 400 });
+
+  const db = getDb();
+  const product = db
+    .prepare('SELECT id, title, price_usd, status FROM products WHERE id = ?')
+    .get(productId) as
+    | { id: string; title: string; price_usd: number; status: string }
+    | undefined;
+  if (!product || product.status !== 'published') {
+    return NextResponse.json({ error: 'product-unavailable' }, { status: 404 });
+  }
+
+  // Resolve the buyer: logged-in user first, otherwise require an email.
+  const uid = getSessionUserId(req);
+  let buyerId: string | null = null;
+  let email = typeof body.email === 'string' ? body.email.trim() : '';
+  if (uid) {
+    const user = db.prepare('SELECT id, email FROM users WHERE id = ?').get(uid) as
+      | { id: string; email: string | null }
+      | undefined;
+    if (user) {
+      buyerId = user.id;
+      if (user.email) email = user.email;
+    }
+  }
+  if (!EMAIL_RE.test(email)) {
+    return NextResponse.json({ error: 'invalid-email' }, { status: 400 });
+  }
+
+  // Affiliate attribution (v2): ?ref=CODE cookie → affiliate cut of the sale.
+  // Invalid codes (or products with affiliates off) are ignored silently;
+  // the cookie is consumed either way.
+  let affiliateCode: string | null = null;
+  let affiliateUsd = 0;
+  const resolved = resolveAffiliate(db, product.id, product.price_usd, getRefCode(req));
+  if (resolved) {
+    affiliateCode = resolved.code;
+    affiliateUsd = resolved.affiliateUsd;
+  }
+  const { fee, seller } = splitOrder(product.price_usd, BRAND.feePercent);
+  const sellerUsd = seller - affiliateUsd;
+
+  const id = randomId();
+  db.prepare(
+    `INSERT INTO orders (id, product_id, buyer_id, buyer_email, amount_usd, fee_usd, seller_usd,
+       affiliate_code, affiliate_usd, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'))`
+  ).run(id, product.id, buyerId, email, product.price_usd, fee, sellerUsd, affiliateCode, affiliateUsd);
+
+  const res = NextResponse.json(
+    {
+      orderId: id,
+      paymentsConfigured: paymentsConfigured(),
+      ...(affiliateCode ? { affiliateCode } : {}),
+    },
+    { status: 201 }
+  );
+  res.headers.append('Set-Cookie', clearRefCookieHeader());
+  return res;
+}

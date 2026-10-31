@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000"><defs><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0"/><feComposite operator="over" in2="SourceGraphic"/></filter></defs><rect width="800" height="1000" fill="#0C241B"/>
+        <rect x="90" y="180" width="620" height="520" rx="20" fill="#3E2F23"/>
+        <rect x="90" y="180" width="620" height="64" rx="20" fill="#2A2119"/>
+        <circle cx="140" cy="212" r="12" fill="#E8A33D"/><circle cx="176" cy="212" r="12" fill="#9DBE8C"/><circle cx="212" cy="212" r="12" fill="#476B4F"/>
+        <g font-family="monospace" font-size="30" fill="#9DBE8C">
+          <text x="130" y="320">$ gatekeeper --serve</text>
+          <text x="130" y="380" fill="#E8A33D">✓ channel linked</text>
+          <text x="130" y="440" fill="#E8A33D">✓ payments armed</text>
+          <text x="130" y="500">$ <rect x="162" y="478" width="22" height="34" fill="#E8A33D"/></text>
+        </g>
+        <g fill="#476B4F" opacity="0.5"><rect x="150" y="760" width="90" height="14" rx="7"/><rect x="300" y="760" width="90" height="14" rx="7"/><rect x="450" y="760" width="90" height="14" rx="7"/><rect x="600" y="760" width="90" height="14" rx="7"/></g><rect x="0" y="820" width="800" height="180" fill="#0C241B"/>
+    <text x="48" y="892" font-family="Georgia, serif" font-size="44" fill="#FAF5EA">GATEKEEPER</text>
+    <text x="48" y="936" font-family="Verdana, sans-serif" font-size="22" letter-spacing="3" fill="#9DBE8C">PAID CHANNEL BOT</text><rect width="800" height="1000" filter="url(#grain)" opacity="0.5"/></svg>

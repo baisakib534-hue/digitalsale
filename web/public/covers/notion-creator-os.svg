@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000"><defs><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0"/><feComposite operator="over" in2="SourceGraphic"/></filter></defs><rect width="800" height="1000" fill="#FAF5EA"/>
+        <g><rect x="70" y="90" width="300" height="200" rx="18" fill="#fff" stroke="#476B4F" stroke-width="3"/>
+            <rect x="94" y="118" width="120" height="18" rx="9" fill="#9DBE8C"/>
+            <rect x="94" y="150" width="200" height="14" rx="7" fill="#0C241B" opacity="0.14"/>
+            <rect x="94" y="176" width="160" height="14" rx="7" fill="#0C241B" opacity="0.14"/>
+            <circle cx="326" cy="240" r="26" fill="#E8A33D"/><rect x="410" y="90" width="300" height="200" rx="18" fill="#fff" stroke="#476B4F" stroke-width="3"/>
+            <rect x="434" y="118" width="120" height="18" rx="9" fill="#9DBE8C"/>
+            <rect x="434" y="150" width="200" height="14" rx="7" fill="#0C241B" opacity="0.14"/>
+            <rect x="434" y="176" width="160" height="14" rx="7" fill="#0C241B" opacity="0.14"/>
+            <circle cx="666" cy="240" r="26" fill="#E8A33D"/><rect x="70" y="330" width="300" height="200" rx="18" fill="#fff" stroke="#476B4F" stroke-width="3"/>
+            <rect x="94" y="358" width="120" height="18" rx="9" fill="#9DBE8C"/>
+            <rect x="94" y="390" width="200" height="14" rx="7" fill="#0C241B" opacity="0.14"/>
+            <rect x="94" y="416" width="160" height="14" rx="7" fill="#0C241B" opacity="0.14"/>
+            <circle cx="326" cy="480" r="26" fill="#E8A33D"/><rect x="410" y="330" width="300" height="200" rx="18" fill="#fff" stroke="#476B4F" stroke-width="3"/>
+            <rect x="434" y="358" width="120" height="18" rx="9" fill="#9DBE8C"/>
+            <rect x="434" y="390" width="200" height="14" rx="7" fill="#0C241B" opacity="0.14"/>
+            <rect x="434" y="416" width="160" height="14" rx="7" fill="#0C241B" opacity="0.14"/>
+            <circle cx="666" cy="480" r="26" fill="#E8A33D"/><rect x="70" y="570" width="300" height="200" rx="18" fill="#fff" stroke="#476B4F" stroke-width="3"/>
+            <rect x="94" y="598" width="120" height="18" rx="9" fill="#9DBE8C"/>
+            <rect x="94" y="630" width="200" height="14" rx="7" fill="#0C241B" opacity="0.14"/>
+            <rect x="94" y="656" width="160" height="14" rx="7" fill="#0C241B" opacity="0.14"/>
+            <circle cx="326" cy="720" r="26" fill="#E8A33D"/><rect x="410" y="570" width="300" height="200" rx="18" fill="#fff" stroke="#476B4F" stroke-width="3"/>
+            <rect x="434" y="598" width="120" height="18" rx="9" fill="#9DBE8C"/>
+            <rect x="434" y="630" width="200" height="14" rx="7" fill="#0C241B" opacity="0.14"/>
+            <rect x="434" y="656" width="160" height="14" rx="7" fill="#0C241B" opacity="0.14"/>
+            <circle cx="666" cy="720" r="26" fill="#E8A33D"/></g><rect x="0" y="820" width="800" height="180" fill="#0C241B"/>
+    <text x="48" y="892" font-family="Georgia, serif" font-size="44" fill="#FAF5EA">STUDIO</text>
+    <text x="48" y="936" font-family="Verdana, sans-serif" font-size="22" letter-spacing="3" fill="#9DBE8C">NOTION CREATOR OS</text><rect width="800" height="1000" filter="url(#grain)" opacity="0.5"/></svg>

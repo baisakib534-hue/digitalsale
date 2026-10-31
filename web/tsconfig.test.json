@@ -1,0 +1,1 @@
+{"compilerOptions": {"incremental": false, "jsx": "react-jsx", "module": "node16", "moduleResolution": "node16", "noEmit": false, "outDir": ".test-dist", "plugins": []}, "exclude": ["node_modules", ".test-dist", "app", "components"], "extends": "./tsconfig.json", "include": ["lib/**/*.ts", "db/**/*.ts", "test/**/*.ts"]}
