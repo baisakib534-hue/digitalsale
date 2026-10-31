@@ -114,7 +114,7 @@ export default function SiteHeader() {
               </>
             ) : (
               <>
-                <Link href="/auth" className="btn btn-outline btn-sm" onClick={() => haptic('tap')}>
+                <Link href="/auth" className="btn btn-outline btn-sm hide-mobile" onClick={() => haptic('tap')}>
                   Log in
                 </Link>
                 <Link href="/auth?mode=signup" className="btn btn-primary btn-sm" onClick={() => haptic('tap')}>

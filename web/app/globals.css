@@ -457,6 +457,10 @@ tr:last-child td { border-bottom: none; }
 }
 @media (max-width: 560px) {
   .wrap { padding: 0 16px; }
+  .hide-mobile { display: none !important; }
+  .site-header .wrap { gap: 10px; }
+  .brand { font-size: 1.15rem; }
+  .brand-mark { width: 30px; height: 30px; }
   .section { padding: 48px 0; }
   .page-hero { padding: 48px 0 32px; }
   .form-card, .panel { padding: 24px 20px; }
