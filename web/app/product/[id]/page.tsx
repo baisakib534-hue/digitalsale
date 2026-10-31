@@ -12,6 +12,10 @@ import Reveal from '../../../components/Reveal';
 import { Stamp, IconShield, IconUsers } from '../../../components/doodles';
 import { stockInfo } from '../../../lib/stock';
 import { getBadges, BADGE_LABEL } from '../../../lib/badges';
+import { productRating } from '../../../lib/reviews';
+import { currentUserIdFromCookies } from '../../../lib/cards';
+import { isWishlisted } from '../../../lib/wishlist';
+import WishlistButton from '../../../components/WishlistButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,6 +91,21 @@ export default function ProductPage({ params }: { params: { id: string } }) {
   const stock = stockInfo(db, row);
   const soldOut = stock.soldOut && !underReview;
   const badges = getBadges(db).get(row.id) ?? [];
+  // v11: reviews + wishlist state.
+  const rating = productRating(db, row.id);
+  const reviews = db
+    .prepare(
+      `SELECT id, rating, body, created_at FROM reviews
+       WHERE product_id = ? ORDER BY created_at DESC LIMIT 20`
+    )
+    .all(row.id) as { id: string; rating: number; body: string; created_at: string }[];
+  let wishlisted = false;
+  try {
+    const uid = currentUserIdFromCookies();
+    if (uid) wishlisted = isWishlisted(db, uid, row.id);
+  } catch {
+    /* cookies unavailable */
+  }
 
   return (
     <div className="wrap" style={{ paddingTop: 56, paddingBottom: 88 }}>
@@ -128,7 +147,20 @@ export default function ProductPage({ params }: { params: { id: string } }) {
               </Stamp>
             )}
           </div>
-          <h1 style={{ marginTop: 16 }}>{row.title}</h1>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginTop: 16 }}>
+            <h1 style={{ margin: 0, flex: 1 }}>{row.title}</h1>
+            <WishlistButton productId={row.id} initial={wishlisted} size={40} />
+          </div>
+          {rating.count > 0 && (
+            <p style={{ margin: '8px 0 0', fontSize: 14.5 }}>
+              <a href="#reviews" style={{ fontWeight: 700, color: 'var(--ink)' }}>
+                ★ {rating.avg?.toFixed(1)}
+              </a>
+              <span style={{ color: 'var(--muted)' }}>
+                {' '}· {rating.count} review{rating.count === 1 ? '' : 's'} from verified buyers
+              </span>
+            </p>
+          )}
           <p style={{ color: 'var(--muted)', fontSize: 14 }}>
             Listed {timeAgo(row.created_at)}
             {fileCount > 0 && (
@@ -163,6 +195,40 @@ export default function ProductPage({ params }: { params: { id: string } }) {
               ))}
             </div>
           )}
+          <div id="reviews" className="panel" style={{ marginTop: 40, scrollMarginTop: 80 }}>
+            <h3 style={{ margin: '0 0 4px' }}>
+              Reviews{' '}
+              <span style={{ color: 'var(--muted)', fontWeight: 400, fontSize: 15 }}>
+                {rating.count > 0 ? (
+                  <>★ {rating.avg?.toFixed(1)} · {rating.count} verified</>
+                ) : (
+                  '— no reviews yet'
+                )}
+              </span>
+            </h3>
+            {reviews.length === 0 ? (
+              <p style={{ color: 'var(--muted)', fontSize: 14.5, marginBottom: 0 }}>
+                Be the first to review this product after you buy it.
+              </p>
+            ) : (
+              <div style={{ display: 'grid', gap: 16, marginTop: 16 }}>
+                {reviews.map((r) => (
+                  <div key={r.id} style={{ borderTop: '1px solid var(--line)', paddingTop: 14 }}>
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+                      <span style={{ color: 'var(--gold, #d97706)', letterSpacing: 2 }} aria-label={`${r.rating} out of 5 stars`}>
+                        {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                      </span>
+                      <span className="chip">Verified buyer</span>
+                      <span style={{ marginLeft: 'auto', fontSize: 12.5, color: 'var(--muted)' }}>
+                        {timeAgo(r.created_at)}
+                      </span>
+                    </div>
+                    {r.body && <p style={{ margin: '8px 0 0', fontSize: 14.5 }}>{r.body}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="panel" style={{ marginTop: 40 }}>
             <h3 style={{ marginBottom: 12 }}>About the seller</h3>
             <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>

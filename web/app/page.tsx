@@ -3,6 +3,7 @@ import { getDb } from '../lib/db';
 import { BRAND } from '../lib/brand';
 import { CATEGORIES } from '../lib/categories';
 import ProductCard, { type CardProduct } from '../components/ProductCard';
+import { enrichCards } from '../lib/cards';
 import EmptyState, { SproutGlyph } from '../components/EmptyState';
 import LandingSearch from '../components/LandingSearch';
 import RefCapture from '../components/RefCapture';
@@ -49,7 +50,7 @@ function statDisplay(n: number): string {
 
 export default function LandingPage() {
   const db = getDb();
-  const latest = db
+  const latestRaw = db
     .prepare(
       `SELECT p.id, p.title, p.price_usd, p.category, p.cover_url,
               s.name AS store_name, s.slug AS store_slug
@@ -60,6 +61,7 @@ export default function LandingPage() {
        LIMIT 12`
     )
     .all() as CardProduct[];
+  const latest = enrichCards(db, latestRaw);
 
   const stats = {
     productsLive: (

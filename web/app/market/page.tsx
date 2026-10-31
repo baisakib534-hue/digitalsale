@@ -7,6 +7,7 @@ import MarketToolbar from '../../components/MarketToolbar';
 import ProductCard, { type CardProduct } from '../../components/ProductCard';
 import EmptyState, { SearchGlyph } from '../../components/EmptyState';
 import RefCapture from '../../components/RefCapture';
+import { enrichCards } from '../../lib/cards';
 import Reveal, { RevealGroup, RevealItem } from '../../components/Reveal';
 import { Stamp } from '../../components/doodles';
 
@@ -69,14 +70,14 @@ export default function MarketPage({ searchParams }: { searchParams: MarketSearc
 
   const rows = db.prepare(sql).all(...params) as CardRow[];
   // v7: sold-out products are unlisted from the market grid.
-  const products: CardProduct[] = rows.filter((r) => !stockInfo(db, r).soldOut);
+  const products: CardProduct[] = enrichCards(db, rows.filter((r) => !stockInfo(db, r).soldOut));
 
   const badges = getBadges(db);
   const badgeOf = (id: string): Badge[] => badges.get(id) ?? [];
 
   // Amazon-style sections (only on the unfiltered market view).
-  const trending = filtering ? [] : fetchCards(db, trendingIds(db));
-  const bestSellers = filtering ? [] : fetchCards(db, bestSellerIds(db));
+  const trending = filtering ? [] : enrichCards(db, fetchCards(db, trendingIds(db)));
+  const bestSellers = filtering ? [] : enrichCards(db, fetchCards(db, bestSellerIds(db)));
 
   return (
     <>

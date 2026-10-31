@@ -55,6 +55,18 @@ interface LicenseRow {
   revoked_at: string | null;
 }
 
+interface DiscountRow {
+  id: string;
+  code: string;
+  kind: 'percent' | 'fixed';
+  value: number;
+  max_uses: number | null;
+  used_count: number;
+  active: number;
+  expires_at: string | null;
+  created_at: string;
+}
+
 /** Persistent banner for accounts that haven't verified with Telegram yet (v3). */
 function VerifyBanner() {
   return (
@@ -138,6 +150,13 @@ export default function DashboardPage() {
   const [editFiles, setEditFiles] = useState<FileRow[]>([]);
   const [editImages, setEditImages] = useState<ImageRow[]>([]);
   const [editLicenses, setEditLicenses] = useState<LicenseRow[]>([]);
+  const [editDiscounts, setEditDiscounts] = useState<DiscountRow[]>([]);
+  const [dcCode, setDcCode] = useState('');
+  const [dcKind, setDcKind] = useState<'percent' | 'fixed'>('percent');
+  const [dcValue, setDcValue] = useState('');
+  const [dcMaxUses, setDcMaxUses] = useState('');
+  const [dcBusy, setDcBusy] = useState(false);
+  const [dcError, setDcError] = useState<string | null>(null);
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
@@ -317,6 +336,22 @@ export default function DashboardPage() {
       } catch {
         setEditLicenses([]);
       }
+      // v11: discount codes for this product.
+      try {
+        const dr = await fetch(`/api/products/${p.id}/discounts`, { cache: 'no-store' });
+        if (dr.ok) {
+          const ddata = (await dr.json()) as { codes: DiscountRow[] };
+          setEditDiscounts(ddata.codes ?? []);
+        } else {
+          setEditDiscounts([]);
+        }
+      } catch {
+        setEditDiscounts([]);
+      }
+      setDcCode('');
+      setDcValue('');
+      setDcMaxUses('');
+      setDcError(null);
     } catch {
       setEditError('Network error.');
     }
@@ -470,6 +505,71 @@ export default function DashboardPage() {
       setImageError('Network error.');
     } finally {
       setImageBusy(false);
+    }
+  }
+
+  // v11: create + deactivate discount codes.
+  async function createDiscountCode(productId: string) {
+    setDcError(null);
+    const value = Math.floor(Number(dcValue));
+    if (!dcCode.trim()) {
+      setDcError('Give the code a name, like SAVE20.');
+      return;
+    }
+    if (!Number.isFinite(value) || value <= 0) {
+      setDcError(dcKind === 'percent' ? 'Percent must be 1–90.' : 'Amount must be at least 1 cent.');
+      return;
+    }
+    if (dcKind === 'percent' && value > 90) {
+      setDcError('Percent must be 1–90.');
+      return;
+    }
+    setDcBusy(true);
+    try {
+      const res = await fetch(`/api/products/${productId}/discounts`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          code: dcCode,
+          kind: dcKind,
+          value,
+          maxUses: dcMaxUses.trim() === '' ? null : dcMaxUses.trim(),
+        }),
+      });
+      const data = (await res.json()) as { error?: string; code?: DiscountRow };
+      if (!res.ok || !data.code) {
+        const why: Record<string, string> = {
+          'invalid-code': 'Use 3–24 letters, numbers or dashes.',
+          'code-taken': 'You already have a code with that name.',
+          'invalid-value': 'Check the discount value.',
+          'percent-too-high': 'Percent must be 1–90.',
+          'invalid-max-uses': 'Max uses must be at least 1.',
+        };
+        setDcError(why[data.error ?? ''] ?? 'Could not create the code.');
+        return;
+      }
+      setEditDiscounts((prev) => [data.code!, ...prev]);
+      setDcCode('');
+      setDcValue('');
+      setDcMaxUses('');
+      haptic('success');
+    } catch {
+      setDcError('Network error.');
+    } finally {
+      setDcBusy(false);
+    }
+  }
+
+  async function deactivateDiscountCode(productId: string, discountId: string) {
+    try {
+      const res = await fetch(`/api/products/${productId}/discounts/${discountId}/deactivate`, {
+        method: 'POST',
+      });
+      if (!res.ok) return;
+      setEditDiscounts((prev) => prev.map((d) => (d.id === discountId ? { ...d, active: 0 } : d)));
+      haptic('tap');
+    } catch {
+      /* best effort */
     }
   }
 
@@ -1113,7 +1213,111 @@ export default function DashboardPage() {
                     </table>
                   </div>
                 )}
-                <div className="panel" style={{ marginBottom: 8 }}>
+                <h3 style={{ marginTop: 36 }}>Discount codes</h3>
+                <p style={{ color: 'var(--muted)', fontSize: 14.5, marginTop: 0 }}>
+                  Promo codes buyers apply at checkout — percent off or a fixed amount off.
+                </p>
+                {editDiscounts.length > 0 && (
+                  <div className="table-wrap" style={{ marginBottom: 20 }}>
+                    <table className="data">
+                      <thead>
+                        <tr><th>Code</th><th>Discount</th><th>Uses</th><th>Status</th><th></th></tr>
+                      </thead>
+                      <tbody>
+                        {editDiscounts.map((d) => (
+                          <tr key={d.id}>
+                            <td><code className="ref-code" style={{ fontSize: 13 }}>{d.code}</code></td>
+                            <td>{d.kind === 'percent' ? `${d.value}% off` : `${formatUsd(d.value)} off`}</td>
+                            <td>{d.used_count}{d.max_uses != null ? ` / ${d.max_uses}` : ''}</td>
+                            <td>
+                              <span className={`chip ${d.active === 1 ? 'badge-published' : 'badge-suspended'}`}>
+                                {d.active === 1 ? 'active' : 'off'}
+                              </span>
+                            </td>
+                            <td>
+                              {d.active === 1 && editingId && (
+                                <button
+                                  type="button"
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => void deactivateDiscountCode(editingId, d.id)}
+                                >
+                                  Deactivate
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, maxWidth: 560 }}>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label htmlFor="dc-code">Code</label>
+                    <input
+                      id="dc-code"
+                      className="input"
+                      placeholder="SAVE20"
+                      value={dcCode}
+                      onChange={(e) => setDcCode(e.target.value.toUpperCase())}
+                      disabled={dcBusy}
+                      maxLength={24}
+                    />
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label htmlFor="dc-kind">Type</label>
+                    <select
+                      id="dc-kind"
+                      className="input"
+                      value={dcKind}
+                      onChange={(e) => setDcKind(e.target.value as 'percent' | 'fixed')}
+                      disabled={dcBusy}
+                    >
+                      <option value="percent">Percent %</option>
+                      <option value="fixed">Fixed amount (cents)</option>
+                    </select>
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label htmlFor="dc-value">{dcKind === 'percent' ? 'Percent (1–90)' : 'Cents off'}</label>
+                    <input
+                      id="dc-value"
+                      className="input"
+                      type="number"
+                      min={1}
+                      max={dcKind === 'percent' ? 90 : undefined}
+                      placeholder={dcKind === 'percent' ? '20' : '500'}
+                      value={dcValue}
+                      onChange={(e) => setDcValue(e.target.value)}
+                      disabled={dcBusy}
+                    />
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label htmlFor="dc-max">Max uses <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(blank = unlimited)</span></label>
+                    <input
+                      id="dc-max"
+                      className="input"
+                      type="number"
+                      min={1}
+                      placeholder="Unlimited"
+                      value={dcMaxUses}
+                      onChange={(e) => setDcMaxUses(e.target.value)}
+                      disabled={dcBusy}
+                    />
+                  </div>
+                </div>
+                {dcError && <div className="form-error" role="alert" style={{ marginTop: 12 }}>{dcError}</div>}
+                <div style={{ marginTop: 12 }}>
+                  <button
+                    type="button"
+                    className="btn btn-dark btn-sm"
+                    disabled={dcBusy || !editingId}
+                    onClick={() => { if (editingId) void createDiscountCode(editingId); }}
+                  >
+                    {dcBusy ? 'Creating…' : 'Create code'}
+                  </button>
+                </div>
+
+                <div className="panel" style={{ marginBottom: 8, marginTop: 36 }}>
                   <h4 style={{ margin: '0 0 8px' }}>Verify keys from your app</h4>
                   <p className="form-note" style={{ margin: '0 0 12px' }}>
                     Call this endpoint when your software activates — it returns whether the key is valid.

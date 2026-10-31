@@ -121,6 +121,8 @@ CREATE TABLE IF NOT EXISTS orders (
   seller_usd              INTEGER NOT NULL, -- cents, seller share
   affiliate_code          TEXT,              -- ref code that drove this sale, if any
   affiliate_usd           INTEGER NOT NULL DEFAULT 0, -- cents, affiliate cut
+  discount_code           TEXT,              -- v11: discount code used, if any
+  discount_usd            INTEGER NOT NULL DEFAULT 0, -- v11: cents saved via discount
   status                  TEXT NOT NULL DEFAULT 'pending', -- pending | paid | failed
   nowpayments_invoice_id  TEXT,
   created_at              TEXT NOT NULL DEFAULT (datetime('now'))
@@ -179,3 +181,43 @@ CREATE TABLE IF NOT EXISTS license_keys (
 CREATE INDEX IF NOT EXISTS idx_license_keys_product ON license_keys(product_id);
 CREATE INDEX IF NOT EXISTS idx_license_keys_key ON license_keys(license_key);
 CREATE INDEX IF NOT EXISTS idx_license_keys_order ON license_keys(order_id);
+
+-- Discount codes (v11, Gumroad-style): per-product promo codes, percent or fixed.
+CREATE TABLE IF NOT EXISTS discount_codes (
+  id          TEXT PRIMARY KEY,
+  product_id  TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  code        TEXT NOT NULL, -- uppercase, unique per product
+  kind        TEXT NOT NULL DEFAULT 'percent', -- percent | fixed
+  value       INTEGER NOT NULL, -- percent 1-90, or fixed cents
+  max_uses    INTEGER, -- NULL = unlimited
+  used_count  INTEGER NOT NULL DEFAULT 0,
+  active      INTEGER NOT NULL DEFAULT 1, -- 0 | 1
+  expires_at  TEXT, -- NULL = never
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(product_id, code)
+);
+
+CREATE INDEX IF NOT EXISTS idx_discount_codes_product ON discount_codes(product_id);
+
+-- Reviews & ratings (v11, Etsy-style): one review per paid order.
+CREATE TABLE IF NOT EXISTS reviews (
+  id          TEXT PRIMARY KEY,
+  product_id  TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  order_id    TEXT NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+  buyer_id    TEXT REFERENCES users(id),
+  rating      INTEGER NOT NULL, -- 1..5
+  body        TEXT NOT NULL DEFAULT '',
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id);
+
+-- Wishlist (v11): buyers save products for later.
+CREATE TABLE IF NOT EXISTS wishlists (
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  product_id  TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (user_id, product_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wishlists_user ON wishlists(user_id);

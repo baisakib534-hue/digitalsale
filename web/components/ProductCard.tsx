@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { formatUsd } from '../lib/format';
 import { BADGE_LABEL, type Badge } from '../lib/badges';
+import WishlistButton from './WishlistButton';
 
 export interface CardProduct {
   id: string;
@@ -10,6 +11,9 @@ export interface CardProduct {
   cover_url: string | null;
   store_name: string;
   store_slug: string;
+  rating_avg?: number | null;
+  rating_count?: number;
+  wishlisted?: boolean;
 }
 
 const BADGE_TONE: Record<Badge, 'ember' | 'mint' | 'gold'> = {
@@ -57,9 +61,14 @@ export default function ProductCard({ product, badges = [] }: { product: CardPro
         </span>
         <div className="foot">
           <span className="price">{formatUsd(product.price_usd)}</span>
-          <Link href={`/product/${product.id}`} className="btn btn-outline btn-sm">
-            View
-          </Link>
+          <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+            {product.rating_count ? (
+              <span style={{ fontSize: 13, color: 'var(--muted)', whiteSpace: 'nowrap' }} title={`${product.rating_count} review${product.rating_count === 1 ? '' : 's'}`}>
+                ★ {product.rating_avg?.toFixed(1)} ({product.rating_count})
+              </span>
+            ) : null}
+            <WishlistButton productId={product.id} initial={product.wishlisted ?? false} size={32} />
+          </span>
         </div>
       </div>
     </article>

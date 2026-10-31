@@ -5,6 +5,7 @@ import { getSessionUserId } from '../../../lib/auth';
 import { paymentsConfigured, splitOrder } from '../../../lib/nowpayments';
 import { stockInfo } from '../../../lib/stock';
 import { BRAND } from '../../../lib/brand';
+import { validateDiscount } from '../../../lib/discounts';
 import {
   getRefCode,
   clearRefCookieHeader,
@@ -16,6 +17,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 interface CheckoutBody {
   productId?: unknown;
   email?: unknown;
+  discountCode?: unknown;
 }
 
 /** Create a pending order for a published product. */
@@ -60,31 +62,46 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid-email' }, { status: 400 });
   }
 
+  // v11: discount code — validated fresh; invalid codes are ignored silently
+  // so a stale code never blocks checkout.
+  let discountCode: string | null = null;
+  let discountUsd = 0;
+  let finalPrice = product.price_usd;
+  if (body.discountCode !== undefined && body.discountCode !== null && String(body.discountCode).trim() !== '') {
+    const check = validateDiscount(db, product.id, product.price_usd, body.discountCode);
+    if (check.ok) {
+      discountCode = check.row.code;
+      discountUsd = check.discountCents;
+      finalPrice = check.finalPriceCents;
+    }
+  }
+
   // Affiliate attribution (v2): ?ref=CODE cookie → affiliate cut of the sale.
   // Invalid codes (or products with affiliates off) are ignored silently;
   // the cookie is consumed either way.
   let affiliateCode: string | null = null;
   let affiliateUsd = 0;
-  const resolved = resolveAffiliate(db, product.id, product.price_usd, getRefCode(req));
+  const resolved = resolveAffiliate(db, product.id, finalPrice, getRefCode(req));
   if (resolved) {
     affiliateCode = resolved.code;
     affiliateUsd = resolved.affiliateUsd;
   }
-  const { fee, seller } = splitOrder(product.price_usd, BRAND.feePercent);
+  const { fee, seller } = splitOrder(finalPrice, BRAND.feePercent);
   const sellerUsd = seller - affiliateUsd;
 
   const id = randomId();
   db.prepare(
     `INSERT INTO orders (id, product_id, buyer_id, buyer_email, amount_usd, fee_usd, seller_usd,
-       affiliate_code, affiliate_usd, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'))`
-  ).run(id, product.id, buyerId, email, product.price_usd, fee, sellerUsd, affiliateCode, affiliateUsd);
+       affiliate_code, affiliate_usd, discount_code, discount_usd, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'))`
+  ).run(id, product.id, buyerId, email, finalPrice, fee, sellerUsd, affiliateCode, affiliateUsd, discountCode, discountUsd);
 
   const res = NextResponse.json(
     {
       orderId: id,
       paymentsConfigured: paymentsConfigured(),
       ...(affiliateCode ? { affiliateCode } : {}),
+      ...(discountCode ? { discountCode, discountUsd } : {}),
     },
     { status: 201 }
   );

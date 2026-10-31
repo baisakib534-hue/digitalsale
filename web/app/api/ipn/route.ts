@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '../../../lib/db';
 import { verifyIpn } from '../../../lib/nowpayments';
 import { issueLicenseKey } from '../../../lib/licenses';
+import { incrementDiscountUse } from '../../../lib/discounts';
 
 interface IpnBody {
   order_id?: unknown;
@@ -34,13 +35,26 @@ export async function POST(req: Request) {
     const status = typeof parsed.payment_status === 'string' ? parsed.payment_status : '';
     if (status === 'finished' && orderId) {
       const db = getDb();
-      const order = db.prepare('SELECT id, product_id, status FROM orders WHERE id = ?').get(orderId) as
-        | { id: string; product_id: string; status: string }
+      const order = db.prepare('SELECT id, product_id, status, discount_code FROM orders WHERE id = ?').get(orderId) as
+        | { id: string; product_id: string; status: string; discount_code: string | null }
         | undefined;
       if (order && order.status === 'pending') {
         // Affiliate stats derive from paid orders carrying affiliate_code —
         // nothing extra to write here.
         db.prepare("UPDATE orders SET status = 'paid' WHERE id = ?").run(order.id);
+        // v11: count the discount code use.
+        if (order.discount_code) {
+          const dc = db
+            .prepare('SELECT id FROM discount_codes WHERE product_id = ? AND code = ?')
+            .get(order.product_id, order.discount_code) as { id: string } | undefined;
+          if (dc) {
+            try {
+              incrementDiscountUse(db, dc.id);
+            } catch (err) {
+              console.error('[ipn] discount use increment failed:', (err as Error).message);
+            }
+          }
+        }
         // v10: Gumroad-style license key per paid order (idempotent).
         const product = db
           .prepare('SELECT license_keys FROM products WHERE id = ?')

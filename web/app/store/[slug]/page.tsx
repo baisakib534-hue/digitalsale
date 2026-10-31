@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDb } from '../../../lib/db';
 import ProductCard, { type CardProduct } from '../../../components/ProductCard';
+import { enrichCards } from '../../../lib/cards';
 import EmptyState, { SproutGlyph } from '../../../components/EmptyState';
 import ReportButton from '../../../components/ReportButton';
 import SafetySection from '../../../components/SafetySection';
@@ -38,16 +39,19 @@ export default function StorePage({ params }: { params: { slug: string } }) {
 
   const products = suspendedStore
     ? []
-    : (db
-        .prepare(
-          `SELECT p.id, p.title, p.price_usd, p.category, p.cover_url,
-                  s.name AS store_name, s.slug AS store_slug
-           FROM products p
-           JOIN stores s ON s.id = p.store_id
-           WHERE p.store_id = ? AND p.status = 'published'
-           ORDER BY p.created_at DESC`
-        )
-        .all(store.id) as CardProduct[]);
+    : enrichCards(
+        db,
+        db
+          .prepare(
+            `SELECT p.id, p.title, p.price_usd, p.category, p.cover_url,
+                    s.name AS store_name, s.slug AS store_slug
+             FROM products p
+             JOIN stores s ON s.id = p.store_id
+             WHERE p.store_id = ? AND p.status = 'published'
+             ORDER BY p.created_at DESC`
+          )
+          .all(store.id) as CardProduct[]
+      );
 
   return (
     <>

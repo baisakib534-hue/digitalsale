@@ -56,6 +56,7 @@ export default function SiteHeader() {
     { href: '/how-it-works', label: 'How it works' },
     { href: '/fees', label: 'Fees' },
     { href: '/sell', label: 'Sell' },
+    ...(me ? [{ href: '/wishlist', label: 'Wishlist' }] : []),
   ];
 
   return (
@@ -81,6 +82,11 @@ export default function SiteHeader() {
           <Link href="/sell" className={isActive('/sell') ? 'active' : ''}>
             Sell
           </Link>
+          {me && (
+            <Link href="/wishlist" className={isActive('/wishlist') ? 'active' : ''}>
+              Wishlist
+            </Link>
+          )}
         </nav>
         <div className="header-actions">
           <span className="fee-note">10% flat fee — keep 90%</span>

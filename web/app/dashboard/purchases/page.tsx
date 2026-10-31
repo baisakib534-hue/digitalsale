@@ -6,6 +6,7 @@ import { createDownloadToken, getSessionUserId } from '../../../lib/auth';
 import { formatUsd, timeAgo } from '../../../lib/format';
 import EmptyState, { BasketGlyph } from '../../../components/EmptyState';
 import LicenseKeyBox from '../../../components/LicenseKeyBox';
+import ReviewForm from '../../../components/ReviewForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -122,6 +123,7 @@ export default function PurchasesPage() {
                     )}
                   </div>
                   {o.license_key && <LicenseKeyBox licenseKey={o.license_key} />}
+                  <ReviewForm productId={o.product_id} orderId={o.order_id} productTitle={o.product_title} />
                 </div>
               </div>
             ))}

@@ -103,4 +103,45 @@ export function runMigrations(db: Database.Database): void {
   db.exec('CREATE INDEX IF NOT EXISTS idx_license_keys_product ON license_keys(product_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_license_keys_key ON license_keys(license_key)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_license_keys_order ON license_keys(order_id)');
+
+  // 11. v11: discount_codes table + orders.discount_code/discount_usd.
+  db.exec(`CREATE TABLE IF NOT EXISTS discount_codes (
+    id          TEXT PRIMARY KEY,
+    product_id  TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    code        TEXT NOT NULL,
+    kind        TEXT NOT NULL DEFAULT 'percent',
+    value       INTEGER NOT NULL,
+    max_uses    INTEGER,
+    used_count  INTEGER NOT NULL DEFAULT 0,
+    active      INTEGER NOT NULL DEFAULT 1,
+    expires_at  TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(product_id, code)
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_discount_codes_product ON discount_codes(product_id)');
+  const orderCols = db.prepare('PRAGMA table_info(orders)').all() as { name: string }[];
+  const orderNames = new Set(orderCols.map((c) => c.name));
+  if (!orderNames.has('discount_code')) db.exec('ALTER TABLE orders ADD COLUMN discount_code TEXT');
+  if (!orderNames.has('discount_usd')) db.exec('ALTER TABLE orders ADD COLUMN discount_usd INTEGER NOT NULL DEFAULT 0');
+
+  // 12. v11: reviews table.
+  db.exec(`CREATE TABLE IF NOT EXISTS reviews (
+    id          TEXT PRIMARY KEY,
+    product_id  TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    order_id    TEXT NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+    buyer_id    TEXT REFERENCES users(id),
+    rating      INTEGER NOT NULL,
+    body        TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id)');
+
+  // 13. v11: wishlists table.
+  db.exec(`CREATE TABLE IF NOT EXISTS wishlists (
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    product_id  TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, product_id)
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_wishlists_user ON wishlists(user_id)');
 }
