@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Instrument_Serif, Space_Grotesk, Space_Mono } from 'next/font/google';
+import { Space_Grotesk, Space_Mono } from 'next/font/google';
 import TelegramInit from '../components/TelegramInit';
 import SiteHeader, { BrandMark } from '../components/SiteHeader';
 import SoundProvider from '../components/SoundProvider';
@@ -7,10 +7,9 @@ import SoundToggle from '../components/SoundToggle';
 import { BRAND } from '../lib/brand';
 import './globals.css';
 
-const display = Instrument_Serif({
+const display = Space_Grotesk({
   subsets: ['latin'],
-  weight: '400',
-  style: ['normal', 'italic'],
+  weight: ['500', '700'],
   variable: '--font-display',
   display: 'swap',
 });
