@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS products (
   category    TEXT NOT NULL DEFAULT 'Misc',
   tags        TEXT NOT NULL DEFAULT '',  -- comma-separated
   cover_url   TEXT,
+  video_url   TEXT, -- YouTube watch/embed URL for the product demo video (v6)
   status      TEXT NOT NULL DEFAULT 'draft', -- draft | published | suspended
   flagged     INTEGER NOT NULL DEFAULT 0, -- 1 = scam-phrase review flag (v4, not public)
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
@@ -89,6 +90,22 @@ CREATE TABLE IF NOT EXISTS product_files (
   telegram_file_id   TEXT,
   telegram_message_id INTEGER,
   local_path         TEXT,
+  created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Product gallery images (v6): seller-uploaded pictures shown on the product
+-- page. Stored via the same file archive as product_files (local/Telegram).
+CREATE TABLE IF NOT EXISTS product_images (
+  id                 TEXT PRIMARY KEY,
+  product_id         TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  filename           TEXT NOT NULL,
+  mime               TEXT NOT NULL DEFAULT 'image/jpeg',
+  size               INTEGER NOT NULL DEFAULT 0,
+  provider           TEXT NOT NULL DEFAULT 'local', -- telegram | local
+  telegram_file_id   TEXT,
+  telegram_message_id INTEGER,
+  local_path         TEXT,
+  position           INTEGER NOT NULL DEFAULT 0,
   created_at         TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

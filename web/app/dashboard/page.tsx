@@ -26,10 +26,20 @@ interface ProductRow {
   tags: string;
   status: string;
   flagged: number;
+  video_url: string | null;
   affiliate_enabled: number | null;
   affiliate_commission: number | null;
   store_name: string;
   store_slug: string;
+  created_at: string;
+}
+
+interface ImageRow {
+  id: string;
+  filename: string;
+  mime: string;
+  size: number;
+  position: number;
   created_at: string;
 }
 
@@ -106,18 +116,21 @@ export default function DashboardPage() {
   const [storeError, setStoreError] = useState<string | null>(null);
 
   // new product form
-  const [np, setNp] = useState({ title: '', description: '', price: '', category: 'Presets', tags: '', status: 'draft', affiliateEnabled: false, affiliateCommission: 20 });
+  const [np, setNp] = useState({ title: '', description: '', price: '', category: 'Presets', tags: '', videoUrl: '', status: 'draft', affiliateEnabled: false, affiliateCommission: 20 });
   const [npBusy, setNpBusy] = useState(false);
   const [npError, setNpError] = useState<string | null>(null);
 
   // edit product
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [edit, setEdit] = useState({ title: '', description: '', price: '', category: '', tags: '', status: 'draft', affiliateEnabled: false, affiliateCommission: 20 });
+  const [edit, setEdit] = useState({ title: '', description: '', price: '', category: '', tags: '', videoUrl: '', status: 'draft', affiliateEnabled: false, affiliateCommission: 20 });
   const [editFiles, setEditFiles] = useState<FileRow[]>([]);
+  const [editImages, setEditImages] = useState<ImageRow[]>([]);
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   // store settings
   const [settings, setSettings] = useState({ name: '', bio: '', payout: '' });
@@ -220,6 +233,7 @@ export default function DashboardPage() {
           price,
           category: np.category,
           tags: np.tags.trim(),
+          videoUrl: np.videoUrl.trim(),
           status: np.status === 'published' ? 'published' : 'draft',
           affiliateEnabled: np.affiliateEnabled,
           affiliateCommission: np.affiliateCommission,
@@ -230,12 +244,14 @@ export default function DashboardPage() {
         setNpError(
           data.error === 'telegram-verification-required'
             ? 'Verify with Telegram first — then you can list products.'
-            : data.error || 'Could not create the product.'
+            : data.error === 'invalid-video-url'
+              ? 'That YouTube link doesn’t look right — paste a normal youtube.com or youtu.be URL.'
+              : data.error || 'Could not create the product.'
         );
         return;
       }
       haptic('success');
-      setNp({ title: '', description: '', price: '', category: 'Presets', tags: '', status: 'draft', affiliateEnabled: false, affiliateCommission: 20 });
+      setNp({ title: '', description: '', price: '', category: 'Presets', tags: '', videoUrl: '', status: 'draft', affiliateEnabled: false, affiliateCommission: 20 });
       flash(`“${data.product.title}” created as ${data.product.status}.`);
       await reload();
     } catch {
@@ -255,18 +271,20 @@ export default function DashboardPage() {
         setEditError('Could not load the product.');
         return;
       }
-      const data = (await res.json()) as { product: ProductRow & { files?: FileRow[] } };
+      const data = (await res.json()) as { product: ProductRow & { files?: FileRow[]; images?: ImageRow[] } };
       setEdit({
         title: data.product.title,
         description: data.product.description,
         price: String(data.product.price_usd / 100),
         category: data.product.category,
         tags: data.product.tags,
+        videoUrl: data.product.video_url ?? '',
         status: data.product.status,
         affiliateEnabled: data.product.affiliate_enabled === 1,
         affiliateCommission: data.product.affiliate_commission ?? 20,
       });
       setEditFiles(data.product.files ?? []);
+      setEditImages(data.product.images ?? []);
     } catch {
       setEditError('Network error.');
     }
@@ -300,6 +318,7 @@ export default function DashboardPage() {
           price,
           category: edit.category,
           tags: edit.tags.trim(),
+          videoUrl: edit.videoUrl.trim(),
           status: edit.status,
           affiliateEnabled: edit.affiliateEnabled,
           affiliateCommission: edit.affiliateCommission,
@@ -310,7 +329,9 @@ export default function DashboardPage() {
         setEditError(
           data.error === 'telegram-verification-required'
             ? 'Verify with Telegram first — then you can edit products.'
-            : data.error || 'Could not save.'
+            : data.error === 'invalid-video-url'
+              ? 'That YouTube link doesn’t look right — paste a normal youtube.com or youtu.be URL.'
+              : data.error || 'Could not save.'
         );
         return;
       }
@@ -362,6 +383,57 @@ export default function DashboardPage() {
       setUploadError('Network error during upload.');
     } finally {
       setUploadBusy(false);
+    }
+  }
+
+  async function uploadImage(productId: string, file: File) {
+    setImageError(null);
+    if (!file.type.startsWith('image/')) {
+      setImageError('Please choose an image file (JPG, PNG, WebP…).');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setImageError('Images are capped at 10 MB.');
+      return;
+    }
+    if (editImages.length >= 8) {
+      setImageError('Up to 8 pictures per product.');
+      return;
+    }
+    setImageBusy(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`/api/products/${productId}/images`, { method: 'POST', body: form });
+      const data = (await res.json()) as { error?: string; image?: ImageRow };
+      if (!res.ok || !data.image) {
+        setImageError(data.error || 'Upload failed.');
+        return;
+      }
+      haptic('success');
+      setEditImages((prev) => [...prev, data.image as ImageRow]);
+      flash(`Picture added.`);
+    } catch {
+      setImageError('Network error during upload.');
+    } finally {
+      setImageBusy(false);
+    }
+  }
+
+  async function deleteImage(productId: string, imageId: string) {
+    setImageError(null);
+    setImageBusy(true);
+    try {
+      const res = await fetch(`/api/products/${productId}/images?imageId=${encodeURIComponent(imageId)}`, { method: 'DELETE' });
+      if (!res.ok) {
+        setImageError('Could not delete the picture.');
+        return;
+      }
+      setEditImages((prev) => prev.filter((im) => im.id !== imageId));
+    } catch {
+      setImageError('Network error.');
+    } finally {
+      setImageBusy(false);
     }
   }
 
@@ -616,6 +688,11 @@ export default function DashboardPage() {
                   <input id="np-tags" className="input" value={np.tags} onChange={(e) => setNp({ ...np, tags: e.target.value })} disabled={npBusy} placeholder="lightroom, presets, moody" />
                 </div>
                 <div className="field">
+                  <label htmlFor="np-video">Demo video <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(YouTube link, optional)</span></label>
+                  <input id="np-video" className="input" type="url" value={np.videoUrl} onChange={(e) => setNp({ ...np, videoUrl: e.target.value })} disabled={npBusy} placeholder="https://www.youtube.com/watch?v=…" />
+                  <p className="hint">Paste a YouTube link — buyers can watch it right on your product page, fullscreen included.</p>
+                </div>
+                <div className="field">
                   <label className="check-row">
                     <input
                       type="checkbox"
@@ -734,6 +811,53 @@ export default function DashboardPage() {
                   <div className="field">
                     <label htmlFor="edit-tags">Tags (comma-separated)</label>
                     <input id="edit-tags" className="input" value={edit.tags} onChange={(e) => setEdit({ ...edit, tags: e.target.value })} disabled={editBusy} />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="edit-video">Demo video <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(YouTube link, optional)</span></label>
+                    <input id="edit-video" className="input" type="url" value={edit.videoUrl} onChange={(e) => setEdit({ ...edit, videoUrl: e.target.value })} disabled={editBusy} placeholder="https://www.youtube.com/watch?v=…" />
+                    <p className="hint">Paste a YouTube link — buyers can watch it right on your product page, fullscreen included. Clear the field to remove the video.</p>
+                  </div>
+                  <div className="field">
+                    <label>Pictures <span style={{ fontWeight: 400, color: 'var(--muted)' }}>({editImages.length}/8)</span></label>
+                    {editImages.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
+                        {editImages.map((im) => (
+                          <div key={im.id} style={{ position: 'relative', width: 96, height: 72, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--line)' }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={`/api/images/${im.id}`} alt={im.filename} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <button
+                              type="button"
+                              aria-label={`Delete ${im.filename}`}
+                              disabled={imageBusy}
+                              onClick={() => { if (editingId) void deleteImage(editingId, im.id); }}
+                              style={{
+                                position: 'absolute', top: 4, right: 4, width: 24, height: 24,
+                                borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.65)',
+                                color: '#fff', cursor: 'pointer', fontSize: 14, lineHeight: 1,
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      disabled={imageBusy || editImages.length >= 8}
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files ?? []);
+                        e.target.value = '';
+                        if (editingId) {
+                          for (const f of files.slice(0, 8 - editImages.length)) void uploadImage(editingId, f);
+                        }
+                      }}
+                      aria-label="Upload product pictures"
+                    />
+                    <p className="hint">JPG, PNG or WebP, up to 10 MB each. These show in a gallery on your product page.</p>
+                    {imageError && <div className="form-error" role="alert">{imageError}</div>}
                   </div>
                   <div className="field">
                     <label className="check-row">

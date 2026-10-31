@@ -32,9 +32,46 @@ describe('database schema + seed integrity', () => {
       .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
       .all()
       .map((r: any) => r.name);
-    for (const t of ['users', 'stores', 'products', 'product_files', 'orders']) {
+    for (const t of ['users', 'stores', 'products', 'product_files', 'product_images', 'orders']) {
       assert.ok(tables.includes(t), `missing table ${t}`);
     }
+  });
+
+  it('has the v6 video_url column on products', () => {
+    const cols = db.prepare('PRAGMA table_info(products)').all() as { name: string }[];
+    assert.ok(cols.some((c) => c.name === 'video_url'), 'products.video_url missing');
+    // Round-trip a video URL through a product row.
+    const p = db.prepare('SELECT id FROM products LIMIT 1').get() as { id: string };
+    db.prepare('UPDATE products SET video_url = ? WHERE id = ?').run(
+      'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      p.id
+    );
+    const row = db.prepare('SELECT video_url FROM products WHERE id = ?').get(p.id) as {
+      video_url: string;
+    };
+    assert.equal(row.video_url, 'https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    db.prepare('UPDATE products SET video_url = NULL WHERE id = ?').run(p.id);
+  });
+
+  it('stores and orders gallery images per product', () => {
+    const p = db.prepare('SELECT id FROM products LIMIT 1').get() as { id: string };
+    const mk = (pos: number) =>
+      db
+        .prepare(
+          `INSERT INTO product_images (id, product_id, filename, mime, size, provider, local_path, position, created_at)
+           VALUES (?, ?, ?, 'image/png', 100, 'local', ?, ?, datetime('now'))`
+        )
+        .run(`img-${pos}-${p.id}`, p.id, `pic${pos}.png`, `pic${pos}.png`, pos);
+    mk(1);
+    mk(0);
+    const rows = db
+      .prepare('SELECT id FROM product_images WHERE product_id = ? ORDER BY position, created_at')
+      .all(p.id) as { id: string }[];
+    assert.deepEqual(
+      rows.map((r) => r.id),
+      [`img-0-${p.id}`, `img-1-${p.id}`]
+    );
+    db.prepare('DELETE FROM product_images WHERE product_id = ?').run(p.id);
   });
 
   it('seeds a demo seller, store and buyer', () => {

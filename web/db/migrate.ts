@@ -72,4 +72,9 @@ export function runMigrations(db: Database.Database): void {
     if (oldName === newName) continue;
     db.prepare('UPDATE products SET category = ? WHERE category = ?').run(newName, oldName);
   }
+
+  // 7. v6: products.video_url for the YouTube demo video.
+  if (prodCols.length > 0 && !prodNames.has('video_url')) {
+    db.exec('ALTER TABLE products ADD COLUMN video_url TEXT');
+  }
 }

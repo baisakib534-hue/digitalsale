@@ -9,6 +9,7 @@ import { archiveProduct } from '../../../lib/channelStore';
 import { CATEGORIES, isCategory } from '../../../lib/categories';
 import { validateCommission, DEFAULT_COMMISSION } from '../../../lib/affiliate';
 import { scanListingText } from '../../../lib/scamPatterns';
+import { parseYouTubeId, youTubeWatchUrl } from '../../../lib/video';
 
 interface ProductRow {
   id: string;
@@ -32,13 +33,13 @@ interface ProductRow {
 const AFFILIATE_JOIN = `LEFT JOIN product_affiliates pa ON pa.product_id = p.id`;
 
 const PUBLIC_SELECT = `SELECT p.id, p.store_id, p.title, p.slug, p.description, p.price_usd,
-    p.category, p.tags, p.cover_url, p.status,
+    p.category, p.tags, p.cover_url, p.video_url, p.status,
     pa.enabled AS affiliate_enabled, pa.commission_percent AS affiliate_commission,
     p.created_at, s.name AS store_name, s.slug AS store_slug
   FROM products p JOIN stores s ON s.id = p.store_id ${AFFILIATE_JOIN}`; // flagged is never public
 
 const SELLER_SELECT = `SELECT p.id, p.store_id, p.title, p.slug, p.description, p.price_usd,
-    p.category, p.tags, p.cover_url, p.status, p.flagged,
+    p.category, p.tags, p.cover_url, p.video_url, p.status, p.flagged,
     pa.enabled AS affiliate_enabled, pa.commission_percent AS affiliate_commission,
     p.created_at, s.name AS store_name, s.slug AS store_slug
   FROM products p JOIN stores s ON s.id = p.store_id ${AFFILIATE_JOIN}`;
@@ -117,6 +118,7 @@ interface ProductBody {
   category?: unknown;
   tags?: unknown;
   status?: unknown;
+  videoUrl?: unknown;
   affiliateEnabled?: unknown;
   affiliateCommission?: unknown;
 }
@@ -140,6 +142,13 @@ export async function POST(req: Request) {
   const category = typeof body.category === 'string' ? body.category : '';
   const tags = typeof body.tags === 'string' ? body.tags.trim() : '';
   const status = body.status === 'published' ? 'published' : 'draft';
+  // v6: optional YouTube demo video — stored as the canonical watch URL.
+  let videoUrl: string | null = null;
+  if (body.videoUrl !== undefined && body.videoUrl !== null && String(body.videoUrl).trim() !== '') {
+    const vid = parseYouTubeId(body.videoUrl);
+    if (!vid) return NextResponse.json({ error: 'invalid-video-url' }, { status: 400 });
+    videoUrl = youTubeWatchUrl(vid);
+  }
   const affiliateEnabled = body.affiliateEnabled === true;
   const commission =
     typeof body.affiliateCommission === 'number' && validateCommission(body.affiliateCommission)
@@ -165,11 +174,11 @@ export async function POST(req: Request) {
   const slug = uniqueProductSlug(db, store.id, slugify(title));
   db.prepare(
     `INSERT INTO products (id, store_id, title, slug, description, price_usd, category, tags, status,
-       flagged, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+       video_url, flagged, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
   ).run(
     id, store.id, title, slug, description, priceUsd, category, tags, status,
-    scamHits.length > 0 ? 1 : 0
+    videoUrl, scamHits.length > 0 ? 1 : 0
   );
   // v2: seller affiliate settings live in product_affiliates (toggle + commission).
   db.prepare(

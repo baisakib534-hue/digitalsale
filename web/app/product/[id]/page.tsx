@@ -4,6 +4,7 @@ import { getDb } from '../../../lib/db';
 import { BRAND } from '../../../lib/brand';
 import { formatUsd, timeAgo } from '../../../lib/format';
 import BuyPanel from '../../../components/BuyPanel';
+import ProductMedia from '../../../components/ProductMedia';
 import RefCapture from '../../../components/RefCapture';
 import ReportButton from '../../../components/ReportButton';
 import SafetySection from '../../../components/SafetySection';
@@ -20,6 +21,7 @@ interface ProductPageRow {
   category: string;
   tags: string;
   cover_url: string | null;
+  video_url: string | null;
   status: string;
   created_at: string;
   affiliate_enabled: number | null;
@@ -43,7 +45,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
   const row = db
     .prepare(
       `SELECT p.id, p.title, p.description, p.price_usd, p.category, p.tags, p.cover_url,
-              p.status, p.created_at,
+              p.video_url, p.status, p.created_at,
               pa.enabled AS affiliate_enabled, pa.commission_percent AS affiliate_commission,
               s.name AS store_name, s.slug AS store_slug, s.bio AS store_bio
        FROM products p
@@ -54,6 +56,11 @@ export default function ProductPage({ params }: { params: { id: string } }) {
     .get(params.id) as ProductPageRow | undefined;
 
   if (!row || (row.status !== 'published' && row.status !== 'suspended')) notFound();
+
+  // v6: seller-uploaded gallery pictures.
+  const gallery = db
+    .prepare('SELECT id, filename FROM product_images WHERE product_id = ? ORDER BY position, created_at')
+    .all(row.id) as { id: string; filename: string }[];
 
   const fileCount = (
     db.prepare('SELECT COUNT(*) AS n FROM product_files WHERE product_id = ?').get(row.id) as {
@@ -79,10 +86,12 @@ export default function ProductPage({ params }: { params: { id: string } }) {
       <RefCapture productId={row.id} />
       <div className="product-layout">
         <div>
-          {row.cover_url && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={row.cover_url} alt={row.title} className="product-cover" style={{ marginBottom: 32 }} />
-          )}
+          <ProductMedia
+            title={row.title}
+            videoUrl={row.video_url}
+            images={gallery}
+            coverUrl={row.cover_url}
+          />
           <div className="cat-row">
             <span className="chip">{row.category}</span>
             {row.affiliate_enabled === 1 && !underReview && (

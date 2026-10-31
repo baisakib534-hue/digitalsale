@@ -7,6 +7,7 @@ import { isVerified } from '../../../../lib/verify';
 import { isCategory } from '../../../../lib/categories';
 import { validateCommission, DEFAULT_COMMISSION } from '../../../../lib/affiliate';
 import { scanListingText } from '../../../../lib/scamPatterns';
+import { parseYouTubeId, youTubeWatchUrl } from '../../../../lib/video';
 
 interface ProductRow {
   id: string;
@@ -37,7 +38,7 @@ interface FileRow {
 }
 
 const WITH_STORE = `SELECT p.id, p.store_id, p.title, p.slug, p.description, p.price_usd,
-    p.category, p.tags, p.cover_url, p.status, p.flagged,
+    p.category, p.tags, p.cover_url, p.video_url, p.status, p.flagged,
     pa.enabled AS affiliate_enabled, pa.commission_percent AS affiliate_commission,
     p.created_at,
     s.name AS store_name, s.slug AS store_slug, s.user_id AS store_user_id
@@ -84,7 +85,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const files = db
     .prepare('SELECT id, filename, mime, size, provider, created_at FROM product_files WHERE product_id = ? ORDER BY created_at')
     .all(product.id) as FileRow[];
-  return NextResponse.json({ product: { ...publicProduct, files } });
+  const images = db
+    .prepare('SELECT id, filename, mime, size, position, created_at FROM product_images WHERE product_id = ? ORDER BY position, created_at')
+    .all(product.id);
+  return NextResponse.json({ product: { ...publicProduct, files, images } });
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
@@ -146,6 +150,18 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ error: 'invalid-status' }, { status: 400 });
     updates.push('status = ?');
     values.push(body.status);
+  }
+  // v6: YouTube demo video — empty string clears it.
+  if (body.videoUrl !== undefined) {
+    const raw = typeof body.videoUrl === 'string' ? body.videoUrl.trim() : '';
+    if (raw === '' || raw === null) {
+      updates.push('video_url = NULL');
+    } else {
+      const vid = parseYouTubeId(raw);
+      if (!vid) return NextResponse.json({ error: 'invalid-video-url' }, { status: 400 });
+      updates.push('video_url = ?');
+      values.push(youTubeWatchUrl(vid));
+    }
   }
   // v2: seller affiliate controls (live in product_affiliates), editable any time.
   const affUpdates: string[] = [];
