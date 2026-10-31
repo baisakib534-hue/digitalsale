@@ -55,6 +55,7 @@ CREATE TABLE IF NOT EXISTS products (
   cover_url   TEXT,
   video_url   TEXT, -- YouTube watch/embed URL for the product demo video (v6)
   stock_limit INTEGER, -- v7: max buyers (NULL = unlimited)
+  license_keys INTEGER NOT NULL DEFAULT 0, -- v10: issue a license key per paid order (0 | 1)
   status      TEXT NOT NULL DEFAULT 'draft', -- draft | published | suspended
   flagged     INTEGER NOT NULL DEFAULT 0, -- 1 = scam-phrase review flag (v4, not public)
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),
@@ -160,3 +161,21 @@ CREATE INDEX IF NOT EXISTS idx_affiliates_code ON affiliates(code);
 CREATE INDEX IF NOT EXISTS idx_clicks_code_product ON affiliate_clicks(code, product_id);
 CREATE INDEX IF NOT EXISTS idx_reports_target ON reports(target_type, target_id, status);
 CREATE INDEX IF NOT EXISTS idx_reports_reporter ON reports(reporter_user_id);
+
+-- Software license keys (v10, Gumroad-style): one key per paid order, optional
+-- per product. Sellers verify keys from their apps via POST /api/licenses/verify.
+CREATE TABLE IF NOT EXISTS license_keys (
+  id              TEXT PRIMARY KEY,
+  product_id      TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  order_id        TEXT NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+  license_key     TEXT NOT NULL UNIQUE, -- e.g. 7KQ2-9F3M-X8PD-2RTV
+  status          TEXT NOT NULL DEFAULT 'active', -- active | revoked
+  activations     INTEGER NOT NULL DEFAULT 0, -- successful verify calls
+  max_activations INTEGER, -- NULL = unlimited seats
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  revoked_at      TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_license_keys_product ON license_keys(product_id);
+CREATE INDEX IF NOT EXISTS idx_license_keys_key ON license_keys(license_key);
+CREATE INDEX IF NOT EXISTS idx_license_keys_order ON license_keys(order_id);

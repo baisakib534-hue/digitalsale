@@ -5,6 +5,7 @@ import { getDb } from '../../../lib/db';
 import { createDownloadToken, getSessionUserId } from '../../../lib/auth';
 import { formatUsd, timeAgo } from '../../../lib/format';
 import EmptyState, { BasketGlyph } from '../../../components/EmptyState';
+import LicenseKeyBox from '../../../components/LicenseKeyBox';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,7 @@ interface PurchaseRow {
   product_cover: string | null;
   store_name: string;
   store_slug: string;
+  license_key: string | null;
   created_at: string;
 }
 
@@ -45,10 +47,12 @@ export default function PurchasesPage() {
     .prepare(
       `SELECT o.id AS order_id, o.product_id, o.created_at,
               p.title AS product_title, p.cover_url AS product_cover,
-              s.name AS store_name, s.slug AS store_slug
+              s.name AS store_name, s.slug AS store_slug,
+              lk.license_key AS license_key
        FROM orders o
        JOIN products p ON p.id = o.product_id
        JOIN stores s ON s.id = p.store_id
+       LEFT JOIN license_keys lk ON lk.order_id = o.id
        WHERE o.status = 'paid' AND (o.buyer_id = ? OR (o.buyer_email != '' AND o.buyer_email = ?))
        ORDER BY o.created_at DESC`
     )
@@ -117,6 +121,7 @@ export default function PurchasesPage() {
                       </span>
                     )}
                   </div>
+                  {o.license_key && <LicenseKeyBox licenseKey={o.license_key} />}
                 </div>
               </div>
             ))}

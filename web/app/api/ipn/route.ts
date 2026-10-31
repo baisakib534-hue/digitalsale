@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '../../../lib/db';
 import { verifyIpn } from '../../../lib/nowpayments';
+import { issueLicenseKey } from '../../../lib/licenses';
 
 interface IpnBody {
   order_id?: unknown;
@@ -33,13 +34,24 @@ export async function POST(req: Request) {
     const status = typeof parsed.payment_status === 'string' ? parsed.payment_status : '';
     if (status === 'finished' && orderId) {
       const db = getDb();
-      const order = db.prepare('SELECT id, status FROM orders WHERE id = ?').get(orderId) as
-        | { id: string; status: string }
+      const order = db.prepare('SELECT id, product_id, status FROM orders WHERE id = ?').get(orderId) as
+        | { id: string; product_id: string; status: string }
         | undefined;
       if (order && order.status === 'pending') {
         // Affiliate stats derive from paid orders carrying affiliate_code —
         // nothing extra to write here.
         db.prepare("UPDATE orders SET status = 'paid' WHERE id = ?").run(order.id);
+        // v10: Gumroad-style license key per paid order (idempotent).
+        const product = db
+          .prepare('SELECT license_keys FROM products WHERE id = ?')
+          .get(order.product_id) as { license_keys: number } | undefined;
+        if (product?.license_keys === 1) {
+          try {
+            issueLicenseKey(db, order.product_id, order.id);
+          } catch (err) {
+            console.error('[ipn] license key issue failed:', (err as Error).message);
+          }
+        }
       }
     }
     return NextResponse.json({ ok: true });

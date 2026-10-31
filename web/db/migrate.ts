@@ -82,4 +82,25 @@ export function runMigrations(db: Database.Database): void {
   if (prodCols.length > 0 && !prodNames.has('stock_limit')) {
     db.exec('ALTER TABLE products ADD COLUMN stock_limit INTEGER');
   }
+
+  // 9. v10: products.license_keys toggle (0 | 1).
+  if (prodCols.length > 0 && !prodNames.has('license_keys')) {
+    db.exec('ALTER TABLE products ADD COLUMN license_keys INTEGER NOT NULL DEFAULT 0');
+  }
+
+  // 10. v10: license_keys table.
+  db.exec(`CREATE TABLE IF NOT EXISTS license_keys (
+    id              TEXT PRIMARY KEY,
+    product_id      TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    order_id        TEXT NOT NULL UNIQUE REFERENCES orders(id) ON DELETE CASCADE,
+    license_key     TEXT NOT NULL UNIQUE,
+    status          TEXT NOT NULL DEFAULT 'active',
+    activations     INTEGER NOT NULL DEFAULT 0,
+    max_activations INTEGER,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    revoked_at      TEXT
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_license_keys_product ON license_keys(product_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_license_keys_key ON license_keys(license_key)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_license_keys_order ON license_keys(order_id)');
 }

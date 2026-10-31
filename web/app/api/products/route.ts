@@ -34,13 +34,13 @@ interface ProductRow {
 const AFFILIATE_JOIN = `LEFT JOIN product_affiliates pa ON pa.product_id = p.id`;
 
 const PUBLIC_SELECT = `SELECT p.id, p.store_id, p.title, p.slug, p.description, p.price_usd,
-    p.category, p.tags, p.cover_url, p.video_url, p.stock_limit, p.status,
+    p.category, p.tags, p.cover_url, p.video_url, p.stock_limit, p.license_keys, p.status,
     pa.enabled AS affiliate_enabled, pa.commission_percent AS affiliate_commission,
     p.created_at, s.name AS store_name, s.slug AS store_slug
   FROM products p JOIN stores s ON s.id = p.store_id ${AFFILIATE_JOIN}`; // flagged is never public
 
 const SELLER_SELECT = `SELECT p.id, p.store_id, p.title, p.slug, p.description, p.price_usd,
-    p.category, p.tags, p.cover_url, p.video_url, p.stock_limit, p.status, p.flagged,
+    p.category, p.tags, p.cover_url, p.video_url, p.stock_limit, p.license_keys, p.status, p.flagged,
     pa.enabled AS affiliate_enabled, pa.commission_percent AS affiliate_commission,
     p.created_at, s.name AS store_name, s.slug AS store_slug
   FROM products p JOIN stores s ON s.id = p.store_id ${AFFILIATE_JOIN}`;
@@ -123,6 +123,7 @@ interface ProductBody {
   affiliateEnabled?: unknown;
   affiliateCommission?: unknown;
   stockLimit?: unknown;
+  licenseKeys?: unknown;
 }
 
 export async function POST(req: Request) {
@@ -159,6 +160,8 @@ export async function POST(req: Request) {
   // v7: optional buyer cap — null = unlimited.
   const stockLimit = normalizeStockLimit(body.stockLimit);
   if (stockLimit === 'invalid') return NextResponse.json({ error: 'invalid-stock-limit' }, { status: 400 });
+  // v10: Gumroad-style license keys per paid order.
+  const licenseKeys = body.licenseKeys === true ? 1 : 0;
 
   if (title.length < 3) return NextResponse.json({ error: 'invalid-title' }, { status: 400 });
   if (!Number.isFinite(price) || price <= 0)
@@ -179,11 +182,11 @@ export async function POST(req: Request) {
   const slug = uniqueProductSlug(db, store.id, slugify(title));
   db.prepare(
     `INSERT INTO products (id, store_id, title, slug, description, price_usd, category, tags, status,
-       video_url, stock_limit, flagged, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+       video_url, stock_limit, license_keys, flagged, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
   ).run(
     id, store.id, title, slug, description, priceUsd, category, tags, status,
-    videoUrl, stockLimit, scamHits.length > 0 ? 1 : 0
+    videoUrl, stockLimit, licenseKeys, scamHits.length > 0 ? 1 : 0
   );
   // v2: seller affiliate settings live in product_affiliates (toggle + commission).
   db.prepare(

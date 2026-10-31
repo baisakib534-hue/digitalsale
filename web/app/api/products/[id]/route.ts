@@ -39,7 +39,7 @@ interface FileRow {
 }
 
 const WITH_STORE = `SELECT p.id, p.store_id, p.title, p.slug, p.description, p.price_usd,
-    p.category, p.tags, p.cover_url, p.video_url, p.stock_limit, p.status, p.flagged,
+    p.category, p.tags, p.cover_url, p.video_url, p.stock_limit, p.license_keys, p.status, p.flagged,
     pa.enabled AS affiliate_enabled, pa.commission_percent AS affiliate_commission,
     p.created_at,
     s.name AS store_name, s.slug AS store_slug, s.user_id AS store_user_id
@@ -170,6 +170,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (limit === 'invalid') return NextResponse.json({ error: 'invalid-stock-limit' }, { status: 400 });
     updates.push('stock_limit = ?');
     values.push(limit);
+  }
+  // v10: license keys toggle.
+  if (body.licenseKeys !== undefined) {
+    updates.push('license_keys = ?');
+    values.push(body.licenseKeys === true ? 1 : 0);
   }
   // v2: seller affiliate controls (live in product_affiliates), editable any time.
   const affUpdates: string[] = [];

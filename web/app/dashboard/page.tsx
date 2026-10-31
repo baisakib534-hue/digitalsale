@@ -28,6 +28,7 @@ interface ProductRow {
   flagged: number;
   video_url: string | null;
   stock_limit: number | null;
+  license_keys: number | null;
   affiliate_enabled: number | null;
   affiliate_commission: number | null;
   store_name: string;
@@ -42,6 +43,16 @@ interface ImageRow {
   size: number;
   position: number;
   created_at: string;
+}
+
+interface LicenseRow {
+  id: string;
+  license_key: string;
+  status: string;
+  activations: number;
+  max_activations: number | null;
+  created_at: string;
+  revoked_at: string | null;
 }
 
 /** Persistent banner for accounts that haven't verified with Telegram yet (v3). */
@@ -117,15 +128,16 @@ export default function DashboardPage() {
   const [storeError, setStoreError] = useState<string | null>(null);
 
   // new product form
-  const [np, setNp] = useState({ title: '', description: '', price: '', category: 'Presets', tags: '', videoUrl: '', status: 'draft', stockLimited: false, stockLimit: '', affiliateEnabled: false, affiliateCommission: 20 });
+  const [np, setNp] = useState({ title: '', description: '', price: '', category: 'Presets', tags: '', videoUrl: '', status: 'draft', stockLimited: false, stockLimit: '', licenseKeys: false, affiliateEnabled: false, affiliateCommission: 20 });
   const [npBusy, setNpBusy] = useState(false);
   const [npError, setNpError] = useState<string | null>(null);
 
   // edit product
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [edit, setEdit] = useState({ title: '', description: '', price: '', category: '', tags: '', videoUrl: '', status: 'draft', stockLimited: false, stockLimit: '', affiliateEnabled: false, affiliateCommission: 20 });
+  const [edit, setEdit] = useState({ title: '', description: '', price: '', category: '', tags: '', videoUrl: '', status: 'draft', stockLimited: false, stockLimit: '', licenseKeys: false, affiliateEnabled: false, affiliateCommission: 20 });
   const [editFiles, setEditFiles] = useState<FileRow[]>([]);
   const [editImages, setEditImages] = useState<ImageRow[]>([]);
+  const [editLicenses, setEditLicenses] = useState<LicenseRow[]>([]);
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [uploadBusy, setUploadBusy] = useState(false);
@@ -237,6 +249,7 @@ export default function DashboardPage() {
           videoUrl: np.videoUrl.trim(),
           status: np.status === 'published' ? 'published' : 'draft',
           stockLimit: np.stockLimited && np.stockLimit.trim() !== '' ? Number(np.stockLimit) : null,
+          licenseKeys: np.licenseKeys,
           affiliateEnabled: np.affiliateEnabled,
           affiliateCommission: np.affiliateCommission,
         }),
@@ -255,7 +268,7 @@ export default function DashboardPage() {
         return;
       }
       haptic('success');
-      setNp({ title: '', description: '', price: '', category: 'Presets', tags: '', videoUrl: '', status: 'draft', stockLimited: false, stockLimit: '', affiliateEnabled: false, affiliateCommission: 20 });
+      setNp({ title: '', description: '', price: '', category: 'Presets', tags: '', videoUrl: '', status: 'draft', stockLimited: false, stockLimit: '', licenseKeys: false, affiliateEnabled: false, affiliateCommission: 20 });
       flash(`“${data.product.title}” created as ${data.product.status}.`);
       await reload();
     } catch {
@@ -286,11 +299,24 @@ export default function DashboardPage() {
         status: data.product.status,
         stockLimited: data.product.stock_limit !== null && data.product.stock_limit !== undefined,
         stockLimit: data.product.stock_limit != null ? String(data.product.stock_limit) : '',
+        licenseKeys: data.product.license_keys === 1,
         affiliateEnabled: data.product.affiliate_enabled === 1,
         affiliateCommission: data.product.affiliate_commission ?? 20,
       });
       setEditFiles(data.product.files ?? []);
       setEditImages(data.product.images ?? []);
+      // v10: license keys for this product.
+      try {
+        const lr = await fetch(`/api/products/${p.id}/licenses`, { cache: 'no-store' });
+        if (lr.ok) {
+          const ldata = (await lr.json()) as { keys: LicenseRow[] };
+          setEditLicenses(ldata.keys ?? []);
+        } else {
+          setEditLicenses([]);
+        }
+      } catch {
+        setEditLicenses([]);
+      }
     } catch {
       setEditError('Network error.');
     }
@@ -327,6 +353,7 @@ export default function DashboardPage() {
           videoUrl: edit.videoUrl.trim(),
           status: edit.status,
           stockLimit: edit.stockLimited && edit.stockLimit.trim() !== '' ? Number(edit.stockLimit) : null,
+          licenseKeys: edit.licenseKeys,
           affiliateEnabled: edit.affiliateEnabled,
           affiliateCommission: edit.affiliateCommission,
         }),
@@ -443,6 +470,19 @@ export default function DashboardPage() {
       setImageError('Network error.');
     } finally {
       setImageBusy(false);
+    }
+  }
+
+  // v10: revoke a license key (buyer's software stops verifying).
+  async function revokeLicense(productId: string, licenseId: string) {
+    if (!window.confirm('Revoke this license key? The buyer\u2019s software will stop activating.')) return;
+    try {
+      const res = await fetch(`/api/products/${productId}/licenses/${licenseId}/revoke`, { method: 'POST' });
+      if (!res.ok) return;
+      setEditLicenses((prev) => prev.map((l) => (l.id === licenseId ? { ...l, status: 'revoked' } : l)));
+      haptic('success');
+    } catch {
+      /* best effort */
     }
   }
 
@@ -733,6 +773,18 @@ export default function DashboardPage() {
                   <label className="check-row">
                     <input
                       type="checkbox"
+                      checked={np.licenseKeys}
+                      onChange={(e) => setNp({ ...np, licenseKeys: e.target.checked })}
+                      disabled={npBusy}
+                    />
+                    <span><strong>License keys</strong> <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(Gumroad-style — each buyer gets a unique key)</span></span>
+                  </label>
+                  <p className="hint">For software: every paid order gets a unique license key, and your app can verify it via our API.</p>
+                </div>
+                <div className="field">
+                  <label className="check-row">
+                    <input
+                      type="checkbox"
                       checked={np.affiliateEnabled}
                       onChange={(e) => setNp({ ...np, affiliateEnabled: e.target.checked })}
                       disabled={npBusy}
@@ -889,6 +941,18 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <div className="field">
+                    <label className="check-row">
+                      <input
+                        type="checkbox"
+                        checked={edit.licenseKeys}
+                        onChange={(e) => setEdit({ ...edit, licenseKeys: e.target.checked })}
+                        disabled={editBusy}
+                      />
+                      <span><strong>License keys</strong> <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(Gumroad-style — each buyer gets a unique key)</span></span>
+                    </label>
+                    <p className="hint">For software: every paid order gets a unique license key, and your app can verify it via our API.</p>
+                  </div>
+                  <div className="field">
                     <label>Pictures <span style={{ fontWeight: 400, color: 'var(--muted)' }}>({editImages.length}/8)</span></label>
                     {editImages.length > 0 && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
@@ -1008,6 +1072,59 @@ export default function DashboardPage() {
                   />
                   {uploadBusy && <p className="form-note" style={{ marginTop: 12 }}>Uploading and archiving…</p>}
                   {uploadError && <div className="form-error" role="alert" style={{ marginTop: 12 }}>{uploadError}</div>}
+                </div>
+
+                <h3 style={{ marginTop: 36 }}>License keys</h3>
+                {editLicenses.length === 0 ? (
+                  <p style={{ color: 'var(--muted)', fontSize: 14.5 }}>
+                    No keys issued yet. {edit.licenseKeys ? 'Keys are created automatically with each paid order.' : 'Turn on “License keys” above and save — every paid order will get a unique key.'}
+                  </p>
+                ) : (
+                  <div className="table-wrap" style={{ marginBottom: 20 }}>
+                    <table className="data">
+                      <thead>
+                        <tr><th>Key</th><th>Status</th><th>Activations</th><th>Issued</th><th></th></tr>
+                      </thead>
+                      <tbody>
+                        {editLicenses.map((l) => (
+                          <tr key={l.id}>
+                            <td><code className="ref-code" style={{ fontSize: 13 }}>{l.license_key}</code></td>
+                            <td>
+                              <span className={`chip ${l.status === 'active' ? 'badge-published' : 'badge-suspended'}`}>
+                                {l.status}
+                              </span>
+                            </td>
+                            <td>{l.activations}{l.max_activations != null ? ` / ${l.max_activations}` : ''}</td>
+                            <td style={{ color: 'var(--muted)', fontSize: 13 }}>{timeAgo(l.created_at)}</td>
+                            <td>
+                              {l.status === 'active' && editingId && (
+                                <button
+                                  type="button"
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => void revokeLicense(editingId, l.id)}
+                                >
+                                  Revoke
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <div className="panel" style={{ marginBottom: 8 }}>
+                  <h4 style={{ margin: '0 0 8px' }}>Verify keys from your app</h4>
+                  <p className="form-note" style={{ margin: '0 0 12px' }}>
+                    Call this endpoint when your software activates — it returns whether the key is valid.
+                  </p>
+                  <code className="ref-code" style={{ display: 'block', whiteSpace: 'pre-wrap', fontSize: 12.5 }}>
+{`POST /api/licenses/verify
+{ "key": "XXXX-XXXX-XXXX-XXXX", "product_id": "${editingId ?? '…'}" }
+
+→ { "valid": true, "product_id": "…", "activations": 3 }
+→ { "valid": false, "reason": "revoked" }`}
+                  </code>
                 </div>
               </div>
             )}
