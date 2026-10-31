@@ -1,7 +1,7 @@
 import type Database from 'better-sqlite3';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { randomId, hashPassword } from '../lib/crypto';
+import { hashPassword } from '../lib/crypto';
 import { slugify } from '../lib/format';
 import { CATEGORIES } from '../lib/categories';
 import { splitSale, DEFAULT_COMMISSION } from '../lib/affiliate';
@@ -350,9 +350,12 @@ export function seedIfEmpty(db: Database.Database): void {
   }
 
   const now = new Date().toISOString();
-  const sellerId = randomId();
-  const buyerId = randomId();
-  const storeId = randomId();
+  // Deterministic seed IDs: every serverless instance seeds byte-identical rows,
+  // so /product/<id> links resolve no matter which instance serves the request.
+  // (Per-instance SQLite is still ephemeral — Postgres is the permanent fix.)
+  const sellerId = 'seed-seller';
+  const buyerId = 'seed-buyer';
+  const storeId = 'seed-store';
 
   // Demo seller (Telegram-verified, gmail address per v3 auth rules)
   db.prepare(
@@ -361,7 +364,7 @@ export function seedIfEmpty(db: Database.Database): void {
   ).run(sellerId, 'june.fernfield@gmail.com', hashPassword('DemoPass123!'), 'June Park', 'fernandfield', now);
 
   // Demo buyer (also an affiliate, verified)
-  const affiliateId = randomId();
+  const affiliateId = 'seed-affiliate';
   db.prepare(
     `INSERT INTO users (id, email, password_hash, name, telegram_verified, created_at)
      VALUES (?, ?, ?, ?, 1, ?)`
@@ -410,7 +413,7 @@ export function seedIfEmpty(db: Database.Database): void {
 
   const created: { id: string; slug: string; title: string; priceCents: number; commission?: number }[] = [];
   PRODUCTS.forEach((p, i) => {
-    const id = randomId();
+    const id = `seed-p-${p.slug}`;
     const coverFile = `${p.slug}.svg`;
     try {
       writeFileSync(join(coversDir, coverFile), coverSvg(p), 'utf8');
@@ -427,7 +430,7 @@ export function seedIfEmpty(db: Database.Database): void {
     const content = `Thanks for purchasing "${p.title}" from Fern & Field on Digitalsale!\n\nThis is a demo file standing in for the real product download.\nIn production, sellers upload their real files and Digitalsale archives them\nto the Telegram storage channel (or local disk in dev).\n\nOrder support: hello@digitalsale.example\n`;
     // Bare filename contract: the download route resolves via localDir().
     writeFileSync(join(storageDir, fname), content, 'utf8');
-    insertFile.run(randomId(), id, fname, 'text/plain', Buffer.byteLength(content), fname, now);
+    insertFile.run(`seed-f-${p.slug}`, id, fname, 'text/plain', Buffer.byteLength(content), fname, now);
   });
 
   // Demo orders at the 10% platform fee, one with affiliate attribution.
@@ -435,6 +438,7 @@ export function seedIfEmpty(db: Database.Database): void {
     `INSERT INTO orders (id, product_id, buyer_id, buyer_email, amount_usd, fee_usd, seller_usd, affiliate_code, affiliate_usd, status, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'paid', ?)`
   );
+  let orderSeq = 0;
   const mkOrder = (
     productId: string,
     price: number,
@@ -443,6 +447,7 @@ export function seedIfEmpty(db: Database.Database): void {
     daysAgo: number,
     affCode: string | null = null
   ) => {
+    orderSeq += 1;
     const fee = Math.round((price * 10) / 100);
     let affiliateUsd = 0;
     if (affCode) {
@@ -451,7 +456,7 @@ export function seedIfEmpty(db: Database.Database): void {
       affiliateUsd = Math.round((price * pct) / 100);
     }
     insertOrder.run(
-      randomId(),
+      `seed-o-${orderSeq}`,
       productId,
       bid,
       email,
@@ -474,8 +479,8 @@ export function seedIfEmpty(db: Database.Database): void {
     `INSERT INTO affiliate_clicks (id, code, product_id, ip_hash, created_at)
      VALUES (?, ?, ?, ?, ?)`
   );
-  insertClick.run(randomId(), 'GROVE7Q2A', created[5].id, 'seed-hash-1', new Date(Date.now() - 86400000).toISOString());
-  insertClick.run(randomId(), 'GROVE7Q2A', created[9].id, 'seed-hash-2', new Date(Date.now() - 2 * 86400000).toISOString());
+  insertClick.run('seed-click-1', 'GROVE7Q2A', created[5].id, 'seed-hash-1', new Date(Date.now() - 86400000).toISOString());
+  insertClick.run('seed-click-2', 'GROVE7Q2A', created[9].id, 'seed-hash-2', new Date(Date.now() - 2 * 86400000).toISOString());
 }
 
 export { slugify };
