@@ -7,7 +7,7 @@ import EmptyState, { SproutGlyph } from '../components/EmptyState';
 import LandingSearch from '../components/LandingSearch';
 import RefCapture from '../components/RefCapture';
 import Reveal, { RevealGroup, RevealItem } from '../components/Reveal';
-import { Stamp, Squiggle, ArrowDoodle, IconShield, IconBolt, IconFlag, IconCoin } from '../components/doodles';
+import { Stamp, ArrowDoodle, IconShield, IconBolt, IconFlag, IconCoin } from '../components/doodles';
 
 export const dynamic = 'force-dynamic';
 
@@ -94,11 +94,7 @@ export default function LandingPage() {
           <Reveal delay={0.08}>
             <h1>
               Digital goods,{' '}
-              <span className="squiggle-wrap">
-                made by independents
-                <Squiggle />
-              </span>
-              .
+              <span className="glow">made by independents</span>.
             </h1>
           </Reveal>
           <Reveal delay={0.16}>
