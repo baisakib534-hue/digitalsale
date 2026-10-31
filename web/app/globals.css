@@ -72,7 +72,7 @@ img { max-width: 100%; }
 .section-head h2 { margin: 0; }
 .section-head a { font-weight: 600; font-size: 15px; white-space: nowrap; }
 
-.lede { font-size: 1.15rem; color: var(--muted); max-width: 640px; }
+.lede { font-size: 1.15rem; color: var(--body); max-width: 640px; }
 .eyebrow {
   display: inline-flex; align-items: center; gap: 8px;
   font-family: var(--font-mono), ui-monospace, monospace;
@@ -115,7 +115,7 @@ img { max-width: 100%; }
 .page-hero { padding: 72px 0 48px; }
 .page-hero h1 { max-width: 800px; }
 .page-hero .lede { margin-bottom: 0; }
-.hero-slim { padding: 48px 0 32px; }
+.hero-slim { padding: 48px 0 24px; }
 .hero-kicker { margin-bottom: 12px; }
 .hero-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; color: var(--muted); font-size: 14px; }
 .hero-doodle-row { display: none; }
@@ -201,6 +201,7 @@ img { max-width: 100%; }
   font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 999px;
 }
 .chip.clickable:hover { border-color: var(--ink); color: var(--ink); text-decoration: none; }
+.chip.on { background: var(--ink); border-color: var(--ink); color: #fff; }
 .cat-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 .stamp {
@@ -244,7 +245,7 @@ img { max-width: 100%; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 28px; }
 .searchbox { position: relative; flex: 1; min-width: 220px; }
 .searchbox .input { padding-left: 44px; border-radius: 999px; }
-.searchbox svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--faint); }
+.searchbox svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--faint); width: 18px; height: 18px; flex: none; }
 .toolbar .select { width: auto; border-radius: 999px; font-weight: 600; }
 
 /* ---------- product page ---------- */

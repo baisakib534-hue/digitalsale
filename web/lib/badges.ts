@@ -91,7 +91,7 @@ export function trendingIds(db: Database.Database, limit = 8): string[] {
            AND o.created_at > datetime('now', '-7 days')
            AND p.status = 'published' AND s.status != 'suspended'
          GROUP BY p.id
-         ORDER BY COUNT(*) DESC
+         ORDER BY COUNT(*) DESC, p.created_at DESC
          LIMIT ?`
       )
       .all(limit) as { id: string }[]
@@ -110,7 +110,7 @@ export function bestSellerIds(db: Database.Database, limit = 8): string[] {
            AND o.created_at > datetime('now', '-30 days')
            AND p.status = 'published' AND s.status != 'suspended'
          GROUP BY p.id
-         ORDER BY SUM(o.amount_usd) DESC
+         ORDER BY SUM(o.amount_usd) DESC, p.created_at DESC
          LIMIT ?`
       )
       .all(limit) as { id: string }[]
