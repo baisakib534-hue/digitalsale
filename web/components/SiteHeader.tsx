@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { haptic } from '../lib/telegram-client';
+import ThemeToggle from './ThemeToggle';
 import { BRAND } from '../lib/brand';
 
 interface Me {
@@ -83,6 +84,7 @@ export default function SiteHeader() {
         </nav>
         <div className="header-actions">
           <span className="fee-note">10% flat fee — keep 90%</span>
+          <ThemeToggle />
           {loaded &&
             (me ? (
               <>

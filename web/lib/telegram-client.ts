@@ -50,6 +50,8 @@ export interface TelegramWebApp {
     notificationOccurred(type: 'error' | 'success' | 'warning'): void;
     selectionChanged(): void;
   };
+  onEvent(event: string, fn: () => void): void;
+  offEvent(event: string, fn: () => void): void;
 }
 
 declare global {
@@ -85,8 +87,16 @@ export function applyTelegramTheme(tp: ThemeParams): void {
     const v = tp[key];
     if (v) root.style.setProperty(cssVar, v);
   }
-  if (tp.bg_color) {
-    root.style.setProperty('--paper', tp.bg_color);
+  // Follow Telegram's own dark/light scheme unless the user picked a theme.
+  try {
+    const wa = getWebApp();
+    if (wa && (wa.colorScheme === 'dark' || wa.colorScheme === 'light')) {
+      if (!window.localStorage.getItem('digitalsale-theme')) {
+        root.dataset.theme = wa.colorScheme;
+      }
+    }
+  } catch {
+    /* ignore */
   }
 }
 

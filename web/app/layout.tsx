@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Space_Grotesk, Space_Mono } from 'next/font/google';
 import TelegramInit from '../components/TelegramInit';
+import ThemeProvider from '../components/ThemeProvider';
 import SiteHeader, { BrandMark } from '../components/SiteHeader';
 import SoundProvider from '../components/SoundProvider';
 import SoundToggle from '../components/SoundToggle';
@@ -40,10 +41,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${display.variable} ${ui.variable} ${mono.variable}`}>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#FBFAF7" />
         <script src="https://telegram.org/js/telegram-web-app.js" defer />
+        {/* Anti-FOUC: set the theme before first paint. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=null;try{s=localStorage.getItem('digitalsale-theme')}catch(e){}var d=s==='dark'||(!s&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';}catch(e){document.documentElement.dataset.theme='light';}})();`,
+          }}
+        />
       </head>
       <body>
         <TelegramInit />
+        <ThemeProvider />
         <SoundProvider />
         <SiteHeader />
         <main>{children}</main>
