@@ -84,9 +84,9 @@ describe('database schema + seed integrity', () => {
     assert.equal(store.name, 'Fern & Field');
   });
 
-  it('seeds 10 published products across the real categories', () => {
+  it('seeds 14 published products across the real categories', () => {
     const products = db.prepare("SELECT * FROM products WHERE status = 'published'").all() as any[];
-    assert.equal(products.length, 10);
+    assert.equal(products.length, 14);
     const cats = new Set(products.map((p) => p.category));
     for (const c of CATEGORIES) assert.ok(cats.has(c), `category ${c} missing`);
     for (const p of products) {

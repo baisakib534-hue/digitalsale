@@ -31,7 +31,7 @@ describe('GET /api/stats', () => {
     const res = await GET();
     assert.equal(res.status, 200);
     const j = (await res.json()) as Record<string, number>;
-    assert.equal(j.productsLive, 10, 'seed has 10 published products');
+    assert.equal(j.productsLive, 14, 'seed has 14 published products');
     assert.equal(j.sellersVerified, 2, 'demo seller + buyer are telegram-verified');
     assert.ok(typeof j.filesScanned === 'number');
     assert.ok(typeof j.reportsResolved === 'number');

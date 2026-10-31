@@ -137,6 +137,48 @@ const PRODUCTS: SeedProduct[] = [
     art: 'icons',
     affiliate: 15,
   },
+  // v7: Redbubble-range categories — print-ready digital goods.
+  {
+    slug: 'cryptid-sticker-pack',
+    title: 'Cryptid Sticker Pack — 60 Die-Cut Designs',
+    description:
+      '60 original cryptid sticker designs with die-cut outlines and bleed, delivered as print-ready PNG (300 DPI, transparent) plus vector SVG and a Cricut/Silhouette cut file bundle. Perfect for Redbubble, Etsy, or your own sticker shop — full commercial license included.',
+    priceCents: 1900,
+    category: 'Stickers & Decals',
+    tags: 'stickers,print-on-demand,die-cut,redbubble,commercial-license',
+    art: 'blobs',
+  },
+  {
+    slug: 'moss-tee-graphics',
+    title: 'Forest Punk — 40 T-Shirt Graphics',
+    description:
+      '40 distressed forest-punk t-shirt graphics: 4500×5400px transparent PNGs on print-ready placement, plus editable PSD/AI source files. Made for merch, Redbubble, and print-on-demand — tested on black and vintage-wash blanks.',
+    priceCents: 2400,
+    category: 'Apparel Designs',
+    tags: 'tshirt,merch,print-on-demand,redbubble,graphics',
+    art: 'ridges',
+  },
+  {
+    slug: 'ember-wall-art',
+    title: 'Ember Hour — 25 Printable Wall Art Posters',
+    description:
+      '25 moody wall-art posters at 24×36in, 300 DPI: ember-hour landscapes, abstract grain studies, and quiet forest scenes. Print at home, at a print shop, or upload to any print-on-demand wall-art service.',
+    priceCents: 1200,
+    category: 'Wall Art & Posters',
+    tags: 'wall-art,posters,printable,print-on-demand,decor',
+    art: 'cards',
+  },
+  {
+    slug: 'night-market-wallpapers',
+    title: 'Night Market — 50 Phone Wallpapers + Icon Pack',
+    description:
+      '50 dark-mode phone wallpapers (4K, all aspect ratios) with a matching 200-icon custom icon pack for iOS and Android. One-tap Shortcuts profile for iPhone, plus a KWGT setup guide for Android.',
+    priceCents: 900,
+    category: 'Phone & Tech',
+    tags: 'wallpapers,phone,icons,ios,android,dark-mode',
+    art: 'wave',
+    affiliate: 20,
+  },
 ];
 
 function grain(id: string): string {
@@ -287,6 +329,10 @@ function coverSvg(p: SeedProduct): string {
     'the-grove-membership': ['THE GROVE', 'PRIVATE COMMUNITY'],
     'moss-tapes-loops': ['MOSS TAPES', '120 LO-FI LOOPS'],
     'pinecone-icons': ['PINECONE', '480 LINE ICONS'],
+    'cryptid-sticker-pack': ['CRYPTID', '60 DIE-CUT STICKERS'],
+    'moss-tee-graphics': ['FOREST PUNK', '40 TEE GRAPHICS'],
+    'ember-wall-art': ['EMBER HOUR', '25 WALL ART PRINTS'],
+    'night-market-wallpapers': ['NIGHT MARKET', 'WALLPAPERS + ICONS'],
   };
   const [t, s] = titles[p.slug];
   return `${head}${body}${titleBand(t, s)}${tail}`;

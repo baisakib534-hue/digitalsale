@@ -3,6 +3,10 @@
  * on Telegram: trading/signal channels, AI subscriptions & resold accounts,
  * ebooks/guides, courses, templates, presets, software & bots, memberships,
  * music/audio, design assets.
+ *
+ * v7: Redbubble-range expansion — the same breadth Redbubble allows, as
+ * digital goods (design files, print-ready art, wallpapers): stickers,
+ * apparel graphics, wall art/posters, phone & tech.
  */
 export const CATEGORIES = [
   'Ebooks & Guides',
@@ -15,6 +19,10 @@ export const CATEGORIES = [
   'Memberships',
   'Music & Audio',
   'Design Assets',
+  'Stickers & Decals',
+  'Apparel Designs',
+  'Wall Art & Posters',
+  'Phone & Tech',
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];

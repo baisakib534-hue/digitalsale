@@ -1463,3 +1463,19 @@ tbody tr:hover td { background: rgba(242, 236, 221, 0.02); }
   .landing-search .btn { width: 100%; }
   .toolbar .select { width: 100%; }
 }
+
+/* v7: merchandising badges (Best Seller / Trending / New) */
+.badge-pill {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  backdrop-filter: blur(6px);
+}
+.badge-ember { background: rgba(255, 92, 28, 0.92); color: #140b06; }
+.badge-gold { background: rgba(255, 194, 75, 0.92); color: #171106; }
+.badge-mint { background: rgba(61, 220, 132, 0.92); color: #06130c; }

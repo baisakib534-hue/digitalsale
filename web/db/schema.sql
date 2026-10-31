@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS products (
   tags        TEXT NOT NULL DEFAULT '',  -- comma-separated
   cover_url   TEXT,
   video_url   TEXT, -- YouTube watch/embed URL for the product demo video (v6)
+  stock_limit INTEGER, -- v7: max buyers (NULL = unlimited)
   status      TEXT NOT NULL DEFAULT 'draft', -- draft | published | suspended
   flagged     INTEGER NOT NULL DEFAULT 0, -- 1 = scam-phrase review flag (v4, not public)
   created_at  TEXT NOT NULL DEFAULT (datetime('now')),

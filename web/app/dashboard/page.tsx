@@ -27,6 +27,7 @@ interface ProductRow {
   status: string;
   flagged: number;
   video_url: string | null;
+  stock_limit: number | null;
   affiliate_enabled: number | null;
   affiliate_commission: number | null;
   store_name: string;
@@ -116,13 +117,13 @@ export default function DashboardPage() {
   const [storeError, setStoreError] = useState<string | null>(null);
 
   // new product form
-  const [np, setNp] = useState({ title: '', description: '', price: '', category: 'Presets', tags: '', videoUrl: '', status: 'draft', affiliateEnabled: false, affiliateCommission: 20 });
+  const [np, setNp] = useState({ title: '', description: '', price: '', category: 'Presets', tags: '', videoUrl: '', status: 'draft', stockLimited: false, stockLimit: '', affiliateEnabled: false, affiliateCommission: 20 });
   const [npBusy, setNpBusy] = useState(false);
   const [npError, setNpError] = useState<string | null>(null);
 
   // edit product
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [edit, setEdit] = useState({ title: '', description: '', price: '', category: '', tags: '', videoUrl: '', status: 'draft', affiliateEnabled: false, affiliateCommission: 20 });
+  const [edit, setEdit] = useState({ title: '', description: '', price: '', category: '', tags: '', videoUrl: '', status: 'draft', stockLimited: false, stockLimit: '', affiliateEnabled: false, affiliateCommission: 20 });
   const [editFiles, setEditFiles] = useState<FileRow[]>([]);
   const [editImages, setEditImages] = useState<ImageRow[]>([]);
   const [editBusy, setEditBusy] = useState(false);
@@ -235,6 +236,7 @@ export default function DashboardPage() {
           tags: np.tags.trim(),
           videoUrl: np.videoUrl.trim(),
           status: np.status === 'published' ? 'published' : 'draft',
+          stockLimit: np.stockLimited && np.stockLimit.trim() !== '' ? Number(np.stockLimit) : null,
           affiliateEnabled: np.affiliateEnabled,
           affiliateCommission: np.affiliateCommission,
         }),
@@ -246,12 +248,14 @@ export default function DashboardPage() {
             ? 'Verify with Telegram first — then you can list products.'
             : data.error === 'invalid-video-url'
               ? 'That YouTube link doesn’t look right — paste a normal youtube.com or youtu.be URL.'
-              : data.error || 'Could not create the product.'
+              : data.error === 'invalid-stock-limit'
+                ? 'The buyer limit must be a whole number above 0.'
+                : data.error || 'Could not create the product.'
         );
         return;
       }
       haptic('success');
-      setNp({ title: '', description: '', price: '', category: 'Presets', tags: '', videoUrl: '', status: 'draft', affiliateEnabled: false, affiliateCommission: 20 });
+      setNp({ title: '', description: '', price: '', category: 'Presets', tags: '', videoUrl: '', status: 'draft', stockLimited: false, stockLimit: '', affiliateEnabled: false, affiliateCommission: 20 });
       flash(`“${data.product.title}” created as ${data.product.status}.`);
       await reload();
     } catch {
@@ -280,6 +284,8 @@ export default function DashboardPage() {
         tags: data.product.tags,
         videoUrl: data.product.video_url ?? '',
         status: data.product.status,
+        stockLimited: data.product.stock_limit !== null && data.product.stock_limit !== undefined,
+        stockLimit: data.product.stock_limit != null ? String(data.product.stock_limit) : '',
         affiliateEnabled: data.product.affiliate_enabled === 1,
         affiliateCommission: data.product.affiliate_commission ?? 20,
       });
@@ -320,6 +326,7 @@ export default function DashboardPage() {
           tags: edit.tags.trim(),
           videoUrl: edit.videoUrl.trim(),
           status: edit.status,
+          stockLimit: edit.stockLimited && edit.stockLimit.trim() !== '' ? Number(edit.stockLimit) : null,
           affiliateEnabled: edit.affiliateEnabled,
           affiliateCommission: edit.affiliateCommission,
         }),
@@ -331,7 +338,9 @@ export default function DashboardPage() {
             ? 'Verify with Telegram first — then you can edit products.'
             : data.error === 'invalid-video-url'
               ? 'That YouTube link doesn’t look right — paste a normal youtube.com or youtu.be URL.'
-              : data.error || 'Could not save.'
+              : data.error === 'invalid-stock-limit'
+                ? 'The buyer limit must be a whole number above 0.'
+                : data.error || 'Could not save.'
         );
         return;
       }
@@ -696,6 +705,34 @@ export default function DashboardPage() {
                   <label className="check-row">
                     <input
                       type="checkbox"
+                      checked={np.stockLimited}
+                      onChange={(e) => setNp({ ...np, stockLimited: e.target.checked })}
+                      disabled={npBusy}
+                    />
+                    <span><strong>Limit buyers</strong> <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(sell to a fixed number of people)</span></span>
+                  </label>
+                  {np.stockLimited && (
+                    <>
+                      <input
+                        id="np-stock"
+                        className="input"
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={np.stockLimit}
+                        onChange={(e) => setNp({ ...np, stockLimit: e.target.value })}
+                        disabled={npBusy}
+                        placeholder="e.g. 50"
+                        style={{ marginTop: 10 }}
+                      />
+                      <p className="hint">When all spots sell out, the product unlists and shows “Sold out”. Leave the toggle off for unlimited sales.</p>
+                    </>
+                  )}
+                </div>
+                <div className="field">
+                  <label className="check-row">
+                    <input
+                      type="checkbox"
                       checked={np.affiliateEnabled}
                       onChange={(e) => setNp({ ...np, affiliateEnabled: e.target.checked })}
                       disabled={npBusy}
@@ -752,7 +789,13 @@ export default function DashboardPage() {
                             )}
                           </td>
                           <td>{formatUsd(p.price_usd)}</td>
-                          <td><span className={`chip badge-${p.status}`}>{p.status}</span></td>
+                          <td><span className={`chip badge-${p.status}`}>{p.status}</span>
+                            {p.stock_limit != null && (
+                              <span className="chip" title={`${p.stock_limit} buyer limit`} style={{ marginLeft: 6 }}>
+                                cap {p.stock_limit}
+                              </span>
+                            )}
+                          </td>
                           <td>
                             {p.affiliate_enabled === 1 ? (
                               <span className="chip badge-aff">{p.affiliate_commission}% on</span>
@@ -816,6 +859,34 @@ export default function DashboardPage() {
                     <label htmlFor="edit-video">Demo video <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(YouTube link, optional)</span></label>
                     <input id="edit-video" className="input" type="url" value={edit.videoUrl} onChange={(e) => setEdit({ ...edit, videoUrl: e.target.value })} disabled={editBusy} placeholder="https://www.youtube.com/watch?v=…" />
                     <p className="hint">Paste a YouTube link — buyers can watch it right on your product page, fullscreen included. Clear the field to remove the video.</p>
+                  </div>
+                  <div className="field">
+                    <label className="check-row">
+                      <input
+                        type="checkbox"
+                        checked={edit.stockLimited}
+                        onChange={(e) => setEdit({ ...edit, stockLimited: e.target.checked })}
+                        disabled={editBusy}
+                      />
+                      <span><strong>Limit buyers</strong> <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(sell to a fixed number of people)</span></span>
+                    </label>
+                    {edit.stockLimited && (
+                      <>
+                        <input
+                          id="edit-stock"
+                          className="input"
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={edit.stockLimit}
+                          onChange={(e) => setEdit({ ...edit, stockLimit: e.target.value })}
+                          disabled={editBusy}
+                          placeholder="e.g. 50"
+                          style={{ marginTop: 10 }}
+                        />
+                        <p className="hint">When all spots sell out, the product unlists and shows “Sold out”. Leave the toggle off for unlimited sales.</p>
+                      </>
+                    )}
                   </div>
                   <div className="field">
                     <label>Pictures <span style={{ fontWeight: 400, color: 'var(--muted)' }}>({editImages.length}/8)</span></label>

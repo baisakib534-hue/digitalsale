@@ -3,6 +3,7 @@ import { getDb } from '../../../lib/db';
 import { randomId } from '../../../lib/crypto';
 import { getSessionUserId } from '../../../lib/auth';
 import { paymentsConfigured, splitOrder } from '../../../lib/nowpayments';
+import { stockInfo } from '../../../lib/stock';
 import { BRAND } from '../../../lib/brand';
 import {
   getRefCode,
@@ -30,12 +31,16 @@ export async function POST(req: Request) {
 
   const db = getDb();
   const product = db
-    .prepare('SELECT id, title, price_usd, status FROM products WHERE id = ?')
+    .prepare('SELECT id, title, price_usd, status, stock_limit FROM products WHERE id = ?')
     .get(productId) as
-    | { id: string; title: string; price_usd: number; status: string }
+    | { id: string; title: string; price_usd: number; status: string; stock_limit: number | null }
     | undefined;
   if (!product || product.status !== 'published') {
     return NextResponse.json({ error: 'product-unavailable' }, { status: 404 });
+  }
+  // v7: enforce the seller's buyer cap.
+  if (stockInfo(db, product).soldOut) {
+    return NextResponse.json({ error: 'sold-out' }, { status: 409 });
   }
 
   // Resolve the buyer: logged-in user first, otherwise require an email.

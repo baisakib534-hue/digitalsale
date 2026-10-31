@@ -10,6 +10,8 @@ import ReportButton from '../../../components/ReportButton';
 import SafetySection from '../../../components/SafetySection';
 import Reveal from '../../../components/Reveal';
 import { Stamp, IconShield, IconUsers } from '../../../components/doodles';
+import { stockInfo } from '../../../lib/stock';
+import { getBadges, BADGE_LABEL } from '../../../lib/badges';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,6 +24,7 @@ interface ProductPageRow {
   tags: string;
   cover_url: string | null;
   video_url: string | null;
+  stock_limit: number | null;
   status: string;
   created_at: string;
   affiliate_enabled: number | null;
@@ -45,7 +48,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
   const row = db
     .prepare(
       `SELECT p.id, p.title, p.description, p.price_usd, p.category, p.tags, p.cover_url,
-              p.video_url, p.status, p.created_at,
+              p.video_url, p.stock_limit, p.status, p.created_at,
               pa.enabled AS affiliate_enabled, pa.commission_percent AS affiliate_commission,
               s.name AS store_name, s.slug AS store_slug, s.bio AS store_bio
        FROM products p
@@ -80,6 +83,10 @@ export default function ProductPage({ params }: { params: { id: string } }) {
 
   const fee = Math.round((row.price_usd * BRAND.feePercent) / 100);
   const underReview = row.status === 'suspended';
+  // v7: seller-set buyer cap + Amazon-style badges.
+  const stock = stockInfo(db, row);
+  const soldOut = stock.soldOut && !underReview;
+  const badges = getBadges(db).get(row.id) ?? [];
 
   return (
     <div className="wrap" style={{ paddingTop: 56, paddingBottom: 88 }}>
@@ -94,6 +101,16 @@ export default function ProductPage({ params }: { params: { id: string } }) {
           />
           <div className="cat-row">
             <span className="chip">{row.category}</span>
+            {badges.map((b) => (
+              <span key={b} className={`badge-pill badge-${b === 'best-seller' ? 'ember' : b === 'trending' ? 'gold' : 'mint'}`}>
+                {BADGE_LABEL[b]}
+              </span>
+            ))}
+            {soldOut && (
+              <span className="badge-pill" style={{ background: 'var(--muted)', color: 'var(--night)' }}>
+                Sold out
+              </span>
+            )}
             {row.affiliate_enabled === 1 && !underReview && (
               <Stamp tone="moss" rotate={false}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -193,6 +210,30 @@ export default function ProductPage({ params }: { params: { id: string } }) {
                 This product is under review and can&apos;t be purchased right now.
               </p>
             </div>
+          ) : soldOut ? (
+            <div>
+              <span className="eyebrow" style={{ marginBottom: 0 }}>
+                Sold out
+              </span>
+              <div
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '2.5rem',
+                  fontWeight: 600,
+                  color: 'var(--muted)',
+                  margin: '8px 0 4px',
+                }}
+              >
+                {formatUsd(row.price_usd)}
+              </div>
+              <p style={{ marginTop: 12, color: 'var(--muted)' }}>
+                The seller limited this product to {stock.stockLimit} buyers, and every spot is
+                taken. It may come back — follow the store for restocks.
+              </p>
+              <Link href={`/store/${row.store_slug}`} className="btn btn-outline" style={{ width: '100%' }}>
+                Visit {row.store_name}
+              </Link>
+            </div>
           ) : (
             <>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
@@ -226,6 +267,13 @@ export default function ProductPage({ params }: { params: { id: string } }) {
                 </div>
               </div>
               <BuyPanel productId={row.id} priceCents={row.price_usd} />
+              {stock.stockLimit !== null && (
+                <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--ember)' }}>
+                  {stock.remaining === 1
+                    ? 'Only 1 spot left'
+                    : `Only ${stock.remaining} of ${stock.stockLimit} spots left`}
+                </p>
+              )}
             </>
           )}
         </aside>

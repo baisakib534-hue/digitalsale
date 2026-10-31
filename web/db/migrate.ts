@@ -77,4 +77,9 @@ export function runMigrations(db: Database.Database): void {
   if (prodCols.length > 0 && !prodNames.has('video_url')) {
     db.exec('ALTER TABLE products ADD COLUMN video_url TEXT');
   }
+
+  // 8. v7: products.stock_limit for seller-set buyer caps (NULL = unlimited).
+  if (prodCols.length > 0 && !prodNames.has('stock_limit')) {
+    db.exec('ALTER TABLE products ADD COLUMN stock_limit INTEGER');
+  }
 }

@@ -8,6 +8,7 @@ import { isCategory } from '../../../../lib/categories';
 import { validateCommission, DEFAULT_COMMISSION } from '../../../../lib/affiliate';
 import { scanListingText } from '../../../../lib/scamPatterns';
 import { parseYouTubeId, youTubeWatchUrl } from '../../../../lib/video';
+import { normalizeStockLimit } from '../../../../lib/stock';
 
 interface ProductRow {
   id: string;
@@ -38,7 +39,7 @@ interface FileRow {
 }
 
 const WITH_STORE = `SELECT p.id, p.store_id, p.title, p.slug, p.description, p.price_usd,
-    p.category, p.tags, p.cover_url, p.video_url, p.status, p.flagged,
+    p.category, p.tags, p.cover_url, p.video_url, p.stock_limit, p.status, p.flagged,
     pa.enabled AS affiliate_enabled, pa.commission_percent AS affiliate_commission,
     p.created_at,
     s.name AS store_name, s.slug AS store_slug, s.user_id AS store_user_id
@@ -162,6 +163,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       updates.push('video_url = ?');
       values.push(youTubeWatchUrl(vid));
     }
+  }
+  // v7: buyer cap — null/empty = unlimited.
+  if (body.stockLimit !== undefined) {
+    const limit = normalizeStockLimit(body.stockLimit);
+    if (limit === 'invalid') return NextResponse.json({ error: 'invalid-stock-limit' }, { status: 400 });
+    updates.push('stock_limit = ?');
+    values.push(limit);
   }
   // v2: seller affiliate controls (live in product_affiliates), editable any time.
   const affUpdates: string[] = [];
