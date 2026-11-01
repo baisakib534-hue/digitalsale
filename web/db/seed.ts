@@ -374,8 +374,8 @@ export function seedIfEmpty(db: Database.Database): void {
   ).run(affiliateId, buyerId, 'GROVE7Q2A', now);
 
   db.prepare(
-    `INSERT INTO stores (id, user_id, name, slug, bio, payout_usdt_address, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO stores (id, user_id, name, slug, bio, payout_usdt_address, whitelabel_token, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     storeId,
     sellerId,
@@ -383,6 +383,7 @@ export function seedIfEmpty(db: Database.Database): void {
     'fern-and-field',
     'Digital goods from a small studio in the Pacific Northwest. Presets, templates and textures made slowly, by hand, in the woods.',
     'TXYZdemo000000000000000000000000000',
+    `st_seedfernfield00000000000000000001`,
     now
   );
 

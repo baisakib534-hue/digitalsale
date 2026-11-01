@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import { Space_Grotesk, Space_Mono } from 'next/font/google';
 import TelegramInit from '../components/TelegramInit';
 import ThemeProvider from '../components/ThemeProvider';
@@ -38,6 +39,14 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // v12: white-label storefronts (/s/[token]) render chromeless — no header,
+  // no footer, no Digitalsale branding. The seller's mini app shows only them.
+  let whitelabel = false;
+  try {
+    whitelabel = (headers().get('x-pathname') || '').startsWith('/s/');
+  } catch {
+    whitelabel = false;
+  }
   return (
     <html lang="en" className={`${display.variable} ${ui.variable} ${mono.variable}`}>
       <head>
@@ -51,12 +60,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body>
+      <body className={whitelabel ? 'whitelabel' : ''}>
         <TelegramInit />
         <ThemeProvider />
         <SoundProvider />
-        <SiteHeader />
+        {!whitelabel && <SiteHeader />}
         <main>{children}</main>
+        {!whitelabel && (
         <footer className="site-footer">
           <div className="wrap">
             <div className="cols">
@@ -98,6 +108,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </div>
         </footer>
+        )}
       </body>
     </html>
   );

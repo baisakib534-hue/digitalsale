@@ -9,6 +9,7 @@ import { validateCommission, DEFAULT_COMMISSION } from '../../../../lib/affiliat
 import { scanListingText } from '../../../../lib/scamPatterns';
 import { parseYouTubeId, youTubeWatchUrl } from '../../../../lib/video';
 import { normalizeStockLimit } from '../../../../lib/stock';
+import { queueChannelPost } from '../../../../lib/stores';
 
 interface ProductRow {
   id: string;
@@ -211,6 +212,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   if (updates.length > 0) {
     db.prepare(`UPDATE products SET ${updates.join(', ')} WHERE id = ?`).run(...values, product.id);
+  }
+  // v12: newly published products → channel auto-post queue (bot stage drains it).
+  if (body.status === 'published' && product.status !== 'published') {
+    try {
+      queueChannelPost(db, product.store_id, product.id);
+    } catch {
+      /* queue is best-effort */
+    }
   }
   const updated = db.prepare(`${WITH_STORE} WHERE p.id = ?`).get(product.id);
   return NextResponse.json({ product: updated });

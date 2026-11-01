@@ -3,6 +3,7 @@ import type Database from 'better-sqlite3';
 import { getDb } from '../../../../lib/db';
 import { slugify } from '../../../../lib/format';
 import { getSessionUserId } from '../../../../lib/auth';
+import { normalizeSocials } from '../../../../lib/stores';
 
 interface StoreRow {
   id: string;
@@ -49,9 +50,9 @@ export async function PATCH(req: Request, { params }: { params: { slug: string }
   if (found instanceof NextResponse) return found;
   const { db, store } = found;
 
-  let body: { name?: unknown; bio?: unknown; payout_usdt_address?: unknown };
+  let body: { name?: unknown; bio?: unknown; payout_usdt_address?: unknown; socials?: unknown };
   try {
-    body = (await req.json()) as { name?: unknown; bio?: unknown; payout_usdt_address?: unknown };
+    body = (await req.json()) as { name?: unknown; bio?: unknown; payout_usdt_address?: unknown; socials?: unknown };
   } catch {
     return NextResponse.json({ error: 'invalid-json' }, { status: 400 });
   }
@@ -77,6 +78,11 @@ export async function PATCH(req: Request, { params }: { params: { slug: string }
   if (body.payout_usdt_address !== undefined) {
     updates.push('payout_usdt_address = ?');
     values.push(typeof body.payout_usdt_address === 'string' ? body.payout_usdt_address.trim() : '');
+  }
+  // v12: social links.
+  if (body.socials !== undefined) {
+    updates.push('socials = ?');
+    values.push(JSON.stringify(normalizeSocials(body.socials)));
   }
 
   if (updates.length === 0) return NextResponse.json({ error: 'nothing-to-update' }, { status: 400 });

@@ -4,6 +4,7 @@ import { getDb } from '../../../lib/db';
 import { randomId } from '../../../lib/crypto';
 import { slugify } from '../../../lib/format';
 import { requireVerified } from '../../../lib/verify';
+import { newWhitelabelToken } from '../../../lib/stores';
 
 function uniqueStoreSlug(db: Database.Database, base: string): string {
   let slug = base || 'store';
@@ -35,10 +36,27 @@ export async function POST(req: Request) {
 
   const id = randomId();
   const slug = uniqueStoreSlug(db, slugify(name));
-  db.prepare(
-    `INSERT INTO stores (id, user_id, name, slug, bio, created_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now'))`
-  ).run(id, uid, name, slug, bio);
+  // v12: every store gets a unique white-label storefront token at creation.
+  let whitelabelToken: string | null = null;
+  for (let attempt = 0; attempt < 5 && !whitelabelToken; attempt++) {
+    const candidate = newWhitelabelToken();
+    try {
+      db.prepare(
+        `INSERT INTO stores (id, user_id, name, slug, bio, whitelabel_token, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+      ).run(id, uid, name, slug, bio, candidate);
+      whitelabelToken = candidate;
+    } catch (err) {
+      if (!(err as Error).message.includes('UNIQUE')) throw err;
+    }
+  }
+  if (!whitelabelToken) {
+    // Extremely unlikely: fall back to a tokenless store; migrate backfills later.
+    db.prepare(
+      `INSERT INTO stores (id, user_id, name, slug, bio, created_at)
+       VALUES (?, ?, ?, ?, ?, datetime('now'))`
+    ).run(id, uid, name, slug, bio);
+  }
 
   const store = db
     .prepare('SELECT id, name, slug, bio, payout_usdt_address, created_at FROM stores WHERE id = ?')

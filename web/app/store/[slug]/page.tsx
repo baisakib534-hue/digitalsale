@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { getDb } from '../../../lib/db';
 import ProductCard, { type CardProduct } from '../../../components/ProductCard';
 import { enrichCards } from '../../../lib/cards';
+import { parseSocials } from '../../../lib/stores';
+import { SocialRow } from '../../../components/Whitelabel';
 import EmptyState, { SproutGlyph } from '../../../components/EmptyState';
 import ReportButton from '../../../components/ReportButton';
 import SafetySection from '../../../components/SafetySection';
@@ -16,6 +18,8 @@ interface StoreRow {
   slug: string;
   bio: string;
   avatar_url: string | null;
+  banner_url: string | null;
+  socials: string | null;
   status: string;
   created_at: string;
 }
@@ -31,11 +35,12 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export default function StorePage({ params }: { params: { slug: string } }) {
   const db = getDb();
   const store = db
-    .prepare('SELECT id, name, slug, bio, avatar_url, status, created_at FROM stores WHERE slug = ?')
+    .prepare('SELECT id, name, slug, bio, avatar_url, banner_url, socials, status, created_at FROM stores WHERE slug = ?')
     .get(params.slug) as StoreRow | undefined;
 
   if (!store) notFound();
   const suspendedStore = store.status === 'suspended';
+  const socials = parseSocials(store.socials);
 
   const products = suspendedStore
     ? []
@@ -56,7 +61,16 @@ export default function StorePage({ params }: { params: { slug: string } }) {
   return (
     <>
       <div className="store-hero">
-        <div className="wrap">
+        {store.banner_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={store.banner_url}
+            alt=""
+            aria-hidden
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.35 }}
+          />
+        )}
+        <div className="wrap" style={{ position: 'relative' }}>
           {store.avatar_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -72,6 +86,9 @@ export default function StorePage({ params }: { params: { slug: string } }) {
           <div>
             <h1>{store.name}</h1>
             {store.bio && <p>{store.bio}</p>}
+            <div style={{ marginTop: 12 }}>
+              <SocialRow socials={socials} dark />
+            </div>
             <p style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <span className="chip" style={{ background: 'rgba(250,245,234,0.14)', color: 'var(--paper)' }}>
                 {products.length} {products.length === 1 ? 'product' : 'products'}

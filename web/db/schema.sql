@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS stores (
   bio                 TEXT NOT NULL DEFAULT '',
   avatar_url          TEXT,
   banner_url          TEXT,
+  socials             TEXT NOT NULL DEFAULT '{}', -- v12: JSON {website,x,instagram,youtube,telegram}
+  whitelabel_token    TEXT UNIQUE, -- v12: unique token for the chromeless storefront /s/[token]
   payout_usdt_address TEXT NOT NULL DEFAULT '',
   status              TEXT NOT NULL DEFAULT 'active', -- active | suspended (v4 admin action)
   created_at          TEXT NOT NULL DEFAULT (datetime('now'))
@@ -221,3 +223,66 @@ CREATE TABLE IF NOT EXISTS wishlists (
 );
 
 CREATE INDEX IF NOT EXISTS idx_wishlists_user ON wishlists(user_id);
+
+-- Seller profile images (v12): one logo + one banner per store.
+CREATE TABLE IF NOT EXISTS store_images (
+  id                  TEXT PRIMARY KEY,
+  store_id            TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  kind                TEXT NOT NULL, -- logo | banner
+  filename            TEXT NOT NULL,
+  mime                TEXT NOT NULL,
+  size                INTEGER NOT NULL,
+  provider            TEXT NOT NULL DEFAULT 'local', -- local | telegram
+  telegram_file_id    TEXT,
+  telegram_message_id TEXT,
+  local_path          TEXT,
+  created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(store_id, kind)
+);
+
+-- Seller API tokens (v12): sellers list products from their own web app.
+CREATE TABLE IF NOT EXISTS store_api_tokens (
+  id          TEXT PRIMARY KEY,
+  store_id    TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  token       TEXT NOT NULL UNIQUE, -- dst_<random>
+  name        TEXT NOT NULL DEFAULT '',
+  revoked     INTEGER NOT NULL DEFAULT 0,
+  last_used_at TEXT,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_store_api_tokens_store ON store_api_tokens(store_id);
+
+-- Seller bots (v12, bot stage): seller's own Telegram bot, registered via @Digitalsale_bot.
+CREATE TABLE IF NOT EXISTS seller_bots (
+  id           TEXT PRIMARY KEY,
+  store_id     TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  bot_token_enc TEXT NOT NULL, -- encrypted with BOT_TOKEN_KEY
+  bot_username TEXT NOT NULL DEFAULT '',
+  status       TEXT NOT NULL DEFAULT 'active', -- active | revoked
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(store_id)
+);
+
+-- Store channels (v12, bot stage): Telegram channels linked for auto-posting.
+CREATE TABLE IF NOT EXISTS store_channels (
+  id            TEXT PRIMARY KEY,
+  store_id      TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  channel_id    TEXT NOT NULL, -- Telegram chat id
+  channel_title TEXT NOT NULL DEFAULT '',
+  auto_post     INTEGER NOT NULL DEFAULT 1, -- 0 | 1
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(store_id, channel_id)
+);
+
+-- Channel post queue (v12, bot stage): drained by the bot worker once live.
+CREATE TABLE IF NOT EXISTS channel_post_queue (
+  id          TEXT PRIMARY KEY,
+  store_id    TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  product_id  TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  status      TEXT NOT NULL DEFAULT 'pending', -- pending | posted | failed
+  error       TEXT,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_channel_post_queue_status ON channel_post_queue(status);

@@ -7,6 +7,7 @@ import EmptyState, { BasketGlyph, SproutGlyph } from '../../components/EmptyStat
 import { CATEGORIES, isCategory } from '../../lib/categories';
 import { formatUsd, shortId, timeAgo } from '../../lib/format';
 import { haptic } from '../../lib/telegram-client';
+import StoreProfileExtras from '../../components/StoreProfileExtras';
 
 interface Me {
   id: string;
@@ -107,6 +108,10 @@ interface StoreRow {
   slug: string;
   bio: string;
   payout_usdt_address: string;
+  avatar_url: string | null;
+  banner_url: string | null;
+  socials: string | null;
+  whitelabel_token: string | null;
 }
 
 type Tab = 'overview' | 'products' | 'orders' | 'store';
@@ -166,6 +171,7 @@ export default function DashboardPage() {
 
   // store settings
   const [settings, setSettings] = useState({ name: '', bio: '', payout: '' });
+  const [socials, setSocials] = useState({ website: '', x: '', instagram: '', youtube: '', telegram: '' });
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
@@ -191,6 +197,18 @@ export default function DashboardPage() {
     if (sRes.ok) {
       const s = ((await sRes.json()) as { store: StoreRow }).store;
       setSettings({ name: s.name, bio: s.bio, payout: s.payout_usdt_address });
+      try {
+        const parsed = JSON.parse(s.socials || '{}') as Record<string, string>;
+        setSocials({
+          website: parsed.website || '',
+          x: parsed.x || '',
+          instagram: parsed.instagram || '',
+          youtube: parsed.youtube || '',
+          telegram: parsed.telegram || '',
+        });
+      } catch {
+        /* keep defaults */
+      }
     }
     setPhase('ready');
   }, [router]);
@@ -603,6 +621,7 @@ export default function DashboardPage() {
           name: settings.name.trim(),
           bio: settings.bio.trim(),
           payout_usdt_address: settings.payout.trim(),
+          socials,
         }),
       });
       const data = (await res.json()) as { error?: string; store?: StoreRow };
@@ -1401,6 +1420,33 @@ export default function DashboardPage() {
                 {settingsBusy ? 'Saving…' : 'Save settings'}
               </button>
             </form>
+
+            <h3 style={{ marginTop: 36 }}>Social links</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, maxWidth: 640 }}>
+              <div className="field" style={{ margin: 0 }}>
+                <label htmlFor="soc-website">Website</label>
+                <input id="soc-website" className="input" placeholder="https://…" value={socials.website} onChange={(e) => setSocials({ ...socials, website: e.target.value })} disabled={settingsBusy} />
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label htmlFor="soc-telegram">Telegram</label>
+                <input id="soc-telegram" className="input" placeholder="@channel" value={socials.telegram} onChange={(e) => setSocials({ ...socials, telegram: e.target.value })} disabled={settingsBusy} />
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label htmlFor="soc-x">X (Twitter)</label>
+                <input id="soc-x" className="input" placeholder="@handle" value={socials.x} onChange={(e) => setSocials({ ...socials, x: e.target.value })} disabled={settingsBusy} />
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label htmlFor="soc-instagram">Instagram</label>
+                <input id="soc-instagram" className="input" placeholder="@handle" value={socials.instagram} onChange={(e) => setSocials({ ...socials, instagram: e.target.value })} disabled={settingsBusy} />
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label htmlFor="soc-youtube">YouTube</label>
+                <input id="soc-youtube" className="input" placeholder="https://youtube.com/…" value={socials.youtube} onChange={(e) => setSocials({ ...socials, youtube: e.target.value })} disabled={settingsBusy} />
+              </div>
+            </div>
+            <p className="hint">Saved with the settings above. Shown on your public store page and white-label storefront.</p>
+
+            {me?.storeSlug && <StoreProfileExtras storeSlug={me.storeSlug} />}
           </div>
         )}
       </div>

@@ -10,6 +10,7 @@ import { CATEGORIES, isCategory } from '../../../lib/categories';
 import { validateCommission, DEFAULT_COMMISSION } from '../../../lib/affiliate';
 import { scanListingText } from '../../../lib/scamPatterns';
 import { parseYouTubeId, youTubeWatchUrl } from '../../../lib/video';
+import { queueChannelPost } from '../../../lib/stores';
 import { normalizeStockLimit } from '../../../lib/stock';
 
 interface ProductRow {
@@ -194,6 +195,14 @@ export async function POST(req: Request) {
      VALUES (?, ?, ?, datetime('now'))`
   ).run(id, affiliateEnabled ? 1 : 0, commission);
 
+  // v12: newly published products → channel auto-post queue (bot stage drains it).
+  if (status === 'published') {
+    try {
+      queueChannelPost(db, store.id, id);
+    } catch {
+      /* queue is best-effort */
+    }
+  }
 
   // Announce to the channel (the bot-contract surface @Digitalsale_bot reads) —
   // best effort, never fails the request.

@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3';
 import { LEGACY_CATEGORY_MAP } from '../lib/categories';
+import { randomBytes } from 'node:crypto';
 import { canonicalGmail } from '../lib/email';
 
 /**
@@ -144,4 +145,77 @@ export function runMigrations(db: Database.Database): void {
     PRIMARY KEY (user_id, product_id)
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS idx_wishlists_user ON wishlists(user_id)');
+
+  // 14. v12: stores.socials + stores.whitelabel_token.
+  const storeColsV12 = db.prepare('PRAGMA table_info(stores)').all() as { name: string }[];
+  const storeNames = new Set(storeColsV12.map((c) => c.name));
+  if (!storeNames.has('socials')) db.exec("ALTER TABLE stores ADD COLUMN socials TEXT NOT NULL DEFAULT '{}'");
+  if (!storeNames.has('whitelabel_token')) db.exec('ALTER TABLE stores ADD COLUMN whitelabel_token TEXT UNIQUE');
+  // Backfill unique whitelabel tokens for existing stores.
+  const missing = db
+    .prepare('SELECT id FROM stores WHERE whitelabel_token IS NULL')
+    .all() as { id: string }[];
+  for (const s of missing) {
+    db.prepare('UPDATE stores SET whitelabel_token = ? WHERE id = ?').run(
+      `st_${randomBytes(18).toString('base64url')}`,
+      s.id
+    );
+  }
+
+  // 15. v12: store_images table.
+  db.exec(`CREATE TABLE IF NOT EXISTS store_images (
+    id                  TEXT PRIMARY KEY,
+    store_id            TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+    kind                TEXT NOT NULL,
+    filename            TEXT NOT NULL,
+    mime                TEXT NOT NULL,
+    size                INTEGER NOT NULL,
+    provider            TEXT NOT NULL DEFAULT 'local',
+    telegram_file_id    TEXT,
+    telegram_message_id TEXT,
+    local_path          TEXT,
+    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(store_id, kind)
+  )`);
+
+  // 16. v12: store_api_tokens table.
+  db.exec(`CREATE TABLE IF NOT EXISTS store_api_tokens (
+    id          TEXT PRIMARY KEY,
+    store_id    TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+    token       TEXT NOT NULL UNIQUE,
+    name        TEXT NOT NULL DEFAULT '',
+    revoked     INTEGER NOT NULL DEFAULT 0,
+    last_used_at TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_store_api_tokens_store ON store_api_tokens(store_id)');
+
+  // 17. v12: seller_bots + store_channels + channel_post_queue (bot stage).
+  db.exec(`CREATE TABLE IF NOT EXISTS seller_bots (
+    id           TEXT PRIMARY KEY,
+    store_id     TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+    bot_token_enc TEXT NOT NULL,
+    bot_username TEXT NOT NULL DEFAULT '',
+    status       TEXT NOT NULL DEFAULT 'active',
+    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(store_id)
+  )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS store_channels (
+    id            TEXT PRIMARY KEY,
+    store_id      TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+    channel_id    TEXT NOT NULL,
+    channel_title TEXT NOT NULL DEFAULT '',
+    auto_post     INTEGER NOT NULL DEFAULT 1,
+    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(store_id, channel_id)
+  )`);
+  db.exec(`CREATE TABLE IF NOT EXISTS channel_post_queue (
+    id          TEXT PRIMARY KEY,
+    store_id    TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+    product_id  TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    status      TEXT NOT NULL DEFAULT 'pending',
+    error       TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_channel_post_queue_status ON channel_post_queue(status)');
 }
