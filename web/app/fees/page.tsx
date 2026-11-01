@@ -54,7 +54,6 @@ const FAQ = [
 export default function FeesPage() {
   const sale = 2500; // $25.00 example sale, in cents
   const ours = Math.round((sale * BRAND.feePercent) / 100);
-  const gumroad = Math.round((sale * 10) / 100);
 
   return (
     <>
@@ -72,7 +71,7 @@ export default function FeesPage() {
             </h1>
             <p className="lede">
               No monthly plans, no payment-processing surcharge, no payout minimum. Here&apos;s what
-              a typical {formatUsd(sale)} sale looks like on {BRAND.name} versus the old guard.
+              a typical {formatUsd(sale)} sale looks like on {BRAND.name}.
             </p>
           </Reveal>
         </div>
@@ -86,44 +85,31 @@ export default function FeesPage() {
                   <tr>
                     <th> </th>
                     <th className="strong">{BRAND.name}</th>
-                    <th>Gumroad</th>
-                    <th>Etsy*</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     <td>Platform fee</td>
                     <td className="strong">{BRAND.feePercent}%</td>
-                    <td>10%</td>
-                    <td>6.5% + $0.20</td>
                   </tr>
                   <tr className="us">
                     <td>You keep on a {formatUsd(sale)} sale</td>
                     <td className="strong">{formatUsd(sale - ours)}</td>
-                    <td>{formatUsd(sale - gumroad)}</td>
-                    <td>≈{formatUsd(sale - Math.round(sale * 0.065) - 20)}</td>
                   </tr>
                   <tr>
                     <td>Payout asset</td>
                     <td className="strong">{BRAND.payoutAsset}</td>
-                    <td>PayPal / bank</td>
-                    <td>Bank deposit</td>
                   </tr>
                   <tr>
                     <td>Who can get paid</td>
                     <td className="strong">Anywhere in the world</td>
-                    <td>~40 supported countries</td>
-                    <td>~30 supported countries</td>
                   </tr>
                   <tr>
                     <td>Affiliate cut</td>
                     <td className="strong">You set it (5–60%)</td>
-                    <td>You set it</td>
-                    <td>—</td>
                   </tr>
                 </tbody>
               </table>
-              <p className="fineprint">*Etsy figures are approximate and for digital-goods comparison only.</p>
             </div>
           </Reveal>
           <Reveal delay={0.08}>
