@@ -230,6 +230,43 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ---------- roadmap ---------- */}
+      <section className="section-tight">
+        <div className="wrap">
+          <Reveal>
+            <span className="eyebrow">Roadmap</span>
+            <h2>
+              What&apos;s <em>coming next.</em>
+            </h2>
+            <p className="lede">
+              We&apos;re building in the open — here&apos;s what&apos;s on the way.
+            </p>
+          </Reveal>
+          <RevealGroup style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginTop: 8 }}>
+            <RevealItem>
+              <div className="perk">
+                <span className="chip" style={{ marginBottom: 12 }}>Coming soon</span>
+                <h3 style={{ margin: '0 0 8px' }}>Local payments</h3>
+                <p style={{ color: 'var(--muted)', fontSize: 14.5, margin: 0 }}>
+                  Pay the way you already do — local payment methods are coming, so buyers
+                  can check out in their own currency, no crypto wallet needed.
+                </p>
+              </div>
+            </RevealItem>
+            <RevealItem>
+              <div className="perk">
+                <span className="chip" style={{ marginBottom: 12 }}>Coming soon</span>
+                <h3 style={{ margin: '0 0 8px' }}>On Google Search</h3>
+                <p style={{ color: 'var(--muted)', fontSize: 14.5, margin: 0 }}>
+                  We&apos;re publishing the marketplace to Google, so your products get
+                  discovered by buyers searching the web — not just inside Telegram.
+                </p>
+              </div>
+            </RevealItem>
+          </RevealGroup>
+        </div>
+      </section>
+
       {/* ---------- seller CTA ---------- */}
       <section className="section-tight">
         <div className="wrap">
