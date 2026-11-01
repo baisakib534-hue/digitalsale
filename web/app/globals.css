@@ -385,6 +385,12 @@ tr:last-child td { border-bottom: none; }
 .marquee { overflow: hidden; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); background: var(--card); }
 .marquee-track { display: flex; gap: 48px; padding: 16px 0; animation: marquee 30s linear infinite; width: max-content; }
 @keyframes marquee { to { transform: translateX(-50%); } }
+/* v14.3: product marquee — auto-scrolling product cards on the homepage. */
+.product-marquee { overflow: hidden; }
+.product-marquee-track { display: flex; gap: 20px; width: max-content; padding: 4px 10px 20px; animation: marquee 45s linear infinite; }
+.product-marquee:hover .product-marquee-track { animation-play-state: paused; }
+.product-marquee-item { width: 280px; flex-shrink: 0; }
+@media (max-width: 560px) { .product-marquee-item { width: 220px; } }
 
 /* ---------- store page ---------- */
 .store-hero { background: var(--card); border: 1px solid var(--line-soft); border-radius: var(--r-lg); padding: 40px; margin-bottom: 32px; display: flex; gap: 24px; align-items: center; }

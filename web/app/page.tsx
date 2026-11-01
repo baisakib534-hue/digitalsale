@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { getDb } from '../lib/db';
 import { BRAND } from '../lib/brand';
-import { CATEGORIES } from '../lib/categories';
 import ProductCard, { type CardProduct } from '../components/ProductCard';
 import { enrichCards } from '../lib/cards';
 import EmptyState, { SproutGlyph } from '../components/EmptyState';
@@ -111,17 +110,49 @@ export default function LandingPage() {
               <ArrowDoodle />
               <span className="hero-meta">search the market — no account needed to browse</span>
             </div>
-          </Reveal>
-          <Reveal delay={0.3}>
-            <div className="cat-row" style={{ marginTop: 28 }}>
-              {CATEGORIES.map((c) => (
-                <Link key={c} href={`/market?category=${encodeURIComponent(c)}`} className="chip clickable">
-                  {c}
-                </Link>
-              ))}
+            <div style={{ marginTop: 20 }}>
+              <Link href="/market" className="btn btn-dark btn-lg">
+                Browse everything
+              </Link>
             </div>
           </Reveal>
         </div>
+      </section>
+
+      {/* ---------- products marquee (top of page) ---------- */}
+      <section className="section-tight" style={{ paddingBottom: 8 }}>
+        <div className="wrap">
+          <Reveal>
+            <div className="section-head">
+              <div>
+                <span className="eyebrow">Fresh listings</span>
+                <h2 style={{ marginBottom: 0 }}>From the market this week</h2>
+              </div>
+            </div>
+          </Reveal>
+        </div>
+        {latest.length === 0 ? (
+          <div className="wrap">
+            <div style={{ marginTop: 24 }}>
+              <EmptyState
+                glyph={<SproutGlyph />}
+                title="The shelves are still empty"
+                body="The first sellers are setting up their stores. Check back soon — or be the first to list."
+                action={{ href: '/sell', label: 'Start selling' }}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="product-marquee" style={{ marginTop: 24 }}>
+            <div className="product-marquee-track">
+              {[...latest, ...latest].map((p, i) => (
+                <div className="product-marquee-item" key={`${p.id}-${i}`}>
+                  <ProductCard product={p} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ---------- marquee ---------- */}
@@ -153,41 +184,6 @@ export default function LandingPage() {
           </RevealGroup>
         </div>
       </div>
-
-      {/* ---------- products first ---------- */}
-      <section className="section">
-        <div className="wrap">
-          <Reveal>
-            <div className="section-head">
-              <div>
-                <span className="eyebrow">Fresh listings</span>
-                <h2 style={{ marginBottom: 0 }}>From the market this week</h2>
-              </div>
-              <Link href="/market" className="btn btn-outline">
-                Browse everything
-              </Link>
-            </div>
-          </Reveal>
-          {latest.length === 0 ? (
-            <div style={{ marginTop: 32 }}>
-              <EmptyState
-                glyph={<SproutGlyph />}
-                title="The shelves are still empty"
-                body="The first sellers are setting up their stores. Check back soon — or be the first to list."
-                action={{ href: '/sell', label: 'Start selling' }}
-              />
-            </div>
-          ) : (
-            <RevealGroup className="product-grid" style={{ marginTop: 32 }}>
-              {latest.map((p) => (
-                <RevealItem key={p.id}>
-                  <ProductCard product={p} />
-                </RevealItem>
-              ))}
-            </RevealGroup>
-          )}
-        </div>
-      </section>
 
       {/* ---------- safety, in the open (live numbers) ---------- */}
       <section className="section safety-open">
