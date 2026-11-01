@@ -250,4 +250,15 @@ export function runMigrations(db: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_bot_notifications_delete_at ON bot_notifications(delete_at);
   `);
+
+  // 21. v14: product signatures — anti-resale duplicate detection.
+  const fileCols = new Set(
+    db.prepare(`PRAGMA table_info(product_files)`).all().map((r) => (r as { name: string }).name)
+  );
+  if (!fileCols.has('sha256')) db.exec('ALTER TABLE product_files ADD COLUMN sha256 TEXT');
+  const prodSigCols = new Set(
+    db.prepare(`PRAGMA table_info(products)`).all().map((r) => (r as { name: string }).name)
+  );
+  if (!prodSigCols.has('signature'))
+    db.exec("ALTER TABLE products ADD COLUMN signature TEXT NOT NULL DEFAULT ''");
 }

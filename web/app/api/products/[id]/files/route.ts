@@ -4,6 +4,7 @@ import { randomId } from '../../../../../lib/crypto';
 import { requireVerified } from '../../../../../lib/verify';
 import { archiveFile } from '../../../../../lib/channelStore';
 import { scanUpload, logScan } from '../../../../../lib/scan';
+import { fileSignature, refreshProductSignature, findDuplicateProduct } from '../../../../../lib/signatures';
 
 const MAX_BYTES = 100 * 1024 * 1024; // 100 MB
 
@@ -50,17 +51,33 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
   const archived = await archiveFile({ buffer, filename, mime });
 
+  // v14: content signature for anti-resale duplicate detection.
+  const sig = fileSignature(buffer, filename, mime);
+
   const id = randomId();
   if (archived.provider === 'telegram') {
     db.prepare(
-      `INSERT INTO product_files (id, product_id, filename, mime, size, provider, telegram_file_id, telegram_message_id, created_at)
-       VALUES (?, ?, ?, ?, ?, 'telegram', ?, ?, datetime('now'))`
-    ).run(id, product.id, filename, mime, file.size, archived.telegramFileId, archived.telegramMessageId);
+      `INSERT INTO product_files (id, product_id, filename, mime, size, provider, telegram_file_id, telegram_message_id, sha256, created_at)
+       VALUES (?, ?, ?, ?, ?, 'telegram', ?, ?, ?, datetime('now'))`
+    ).run(id, product.id, filename, mime, file.size, archived.telegramFileId, archived.telegramMessageId, sig);
   } else {
     db.prepare(
-      `INSERT INTO product_files (id, product_id, filename, mime, size, provider, local_path, created_at)
-       VALUES (?, ?, ?, ?, ?, 'local', ?, datetime('now'))`
-    ).run(id, product.id, filename, mime, file.size, archived.localPath);
+      `INSERT INTO product_files (id, product_id, filename, mime, size, provider, local_path, sha256, created_at)
+       VALUES (?, ?, ?, ?, ?, 'local', ?, ?, datetime('now'))`
+    ).run(id, product.id, filename, mime, file.size, archived.localPath, sig);
+  }
+  refreshProductSignature(db, product.id);
+  // v14: a file added to an already-published product can also complete a
+  // duplicate — auto-suspend instead of letting it go live.
+  const pubStatus = db
+    .prepare('SELECT status, signature FROM products WHERE id = ?')
+    .get(product.id) as { status: string; signature: string };
+  if (pubStatus.status === 'published') {
+    const dupe = findDuplicateProduct(db, product.id, pubStatus.signature);
+    if (dupe) {
+      db.prepare("UPDATE products SET status = 'suspended' WHERE id = ?").run(product.id);
+      return NextResponse.json({ error: 'duplicate-product', suspended: true }, { status: 409 });
+    }
   }
 
   const row = db

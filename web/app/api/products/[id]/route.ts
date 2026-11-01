@@ -10,6 +10,10 @@ import { scanListingText } from '../../../../lib/scamPatterns';
 import { parseYouTubeId, youTubeWatchUrl } from '../../../../lib/video';
 import { normalizeStockLimit } from '../../../../lib/stock';
 import { queueChannelPost } from '../../../../lib/stores';
+import {
+  refreshProductSignature,
+  findDuplicateProduct,
+} from '../../../../lib/signatures';
 
 interface ProductRow {
   id: string;
@@ -212,6 +216,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   if (updates.length > 0) {
     db.prepare(`UPDATE products SET ${updates.join(', ')} WHERE id = ?`).run(...values, product.id);
+  }
+  // v14: anti-resale — block publishing when the files already belong to
+  // another store's product. The listing is never created.
+  if (body.status === 'published' && product.status !== 'published') {
+    const sig = refreshProductSignature(db, product.id);
+    const dupe = findDuplicateProduct(db, product.id, sig);
+    if (dupe) {
+      return NextResponse.json({ error: 'duplicate-product' }, { status: 409 });
+    }
   }
   // v12: newly published products → channel auto-post queue (bot stage drains it).
   if (body.status === 'published' && product.status !== 'published') {

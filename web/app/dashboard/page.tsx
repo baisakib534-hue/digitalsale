@@ -300,7 +300,9 @@ export default function DashboardPage() {
               ? 'That YouTube link doesn’t look right — paste a normal youtube.com or youtu.be URL.'
               : data.error === 'invalid-stock-limit'
                 ? 'The buyer limit must be a whole number above 0.'
-                : data.error || 'Could not create the product.'
+                : data.error === 'duplicate-product'
+                  ? 'This product is already listed on Digitalsale — duplicate listings are not allowed.'
+                  : data.error || 'Could not create the product.'
         );
         return;
       }
@@ -420,7 +422,9 @@ export default function DashboardPage() {
               ? 'That YouTube link doesn’t look right — paste a normal youtube.com or youtu.be URL.'
               : data.error === 'invalid-stock-limit'
                 ? 'The buyer limit must be a whole number above 0.'
-                : data.error || 'Could not save.'
+                : data.error === 'duplicate-product'
+                  ? 'This product is already listed on Digitalsale — duplicate listings are not allowed.'
+                  : data.error || 'Could not save.'
         );
         return;
       }
