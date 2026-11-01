@@ -254,26 +254,26 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------- seller CTA ---------- */}
+      {/* ---------- buyer CTA ---------- */}
       <section className="section-tight">
         <div className="wrap">
           <Reveal>
             <div className="panel cta-panel">
               <div style={{ maxWidth: 560 }}>
                 <h2>
-                  Your work deserves a <em>real payout.</em>
+                  Find something <em>made for you.</em>
                 </h2>
                 <p>
-                  Join the sellers keeping {100 - BRAND.feePercent}% of every sale and cashing out
-                  in {BRAND.payoutAsset} — no bank account required, no borders involved.
+                  Browse independent digital goods — presets, templates, ebooks and more. Buy
+                  in seconds, download instantly, yours forever.
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <Link href="/sell" className="btn btn-primary btn-lg">
-                  Start selling
+                <Link href="/market" className="btn btn-primary btn-lg">
+                  Browse the market
                 </Link>
-                <Link href="/how-it-works" className="btn btn-outline-light btn-lg">
-                  How it works
+                <Link href="/sell" className="btn btn-outline-light btn-lg">
+                  Sell your work
                 </Link>
               </div>
             </div>

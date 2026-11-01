@@ -129,7 +129,7 @@ export default function SiteHeader() {
                   Log in
                 </Link>
                 <Link href="/auth?mode=signup" className="btn btn-primary btn-sm" onClick={() => haptic('tap')}>
-                  Start selling
+                  Sign up
                 </Link>
               </>
             ))}
@@ -174,7 +174,7 @@ export default function SiteHeader() {
                     Log in
                   </Link>
                   <Link href="/auth?mode=signup" className="btn btn-primary" onClick={() => haptic('tap')}>
-                    Start selling
+                    Sign up
                   </Link>
                 </>
               ))}
