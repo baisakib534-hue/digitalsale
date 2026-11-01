@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { getDb } from '../../../../lib/db';
 import { randomId } from '../../../../lib/crypto';
 import { createSessionToken, sessionCookieHeader } from '../../../../lib/auth';
-import { validateInitData } from '../../../../lib/telegram';
+import { validateInitData, validateLoginWidget } from '../../../../lib/telegram';
 
 interface TelegramBody {
   initData?: unknown;
+  /** Telegram Login Widget payload (website flow, v13). */
+  widget?: unknown;
 }
 
 export async function POST(req: Request) {
@@ -20,8 +22,11 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: 'invalid-json' }, { status: 400 });
   }
-  const initData = typeof body.initData === 'string' ? body.initData : '';
-  const result = validateInitData(initData, botToken);
+
+  // Two Telegram auth flows: Mini App initData, or the website Login Widget.
+  const result = body.widget
+    ? validateLoginWidget(body.widget, botToken)
+    : validateInitData(typeof body.initData === 'string' ? body.initData : '', botToken);
   if (!result.ok || !result.user) {
     return NextResponse.json({ error: 'telegram-invalid', reason: result.reason ?? 'unknown' }, { status: 401 });
   }

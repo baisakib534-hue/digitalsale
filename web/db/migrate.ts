@@ -218,4 +218,14 @@ export function runMigrations(db: Database.Database): void {
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
   )`);
   db.exec('CREATE INDEX IF NOT EXISTS idx_channel_post_queue_status ON channel_post_queue(status)');
+
+  // 18. v13: stores.custom_slug (customizable white-label link, unique) + theme_json (storefront customizer).
+  const storeColsV13 = new Set(
+    db.prepare(`PRAGMA table_info(stores)`).all().map((r) => (r as { name: string }).name)
+  );
+  if (!storeColsV13.has('custom_slug')) db.exec('ALTER TABLE stores ADD COLUMN custom_slug TEXT');
+  if (!storeColsV13.has('theme_json')) db.exec('ALTER TABLE stores ADD COLUMN theme_json TEXT');
+  db.exec(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_stores_custom_slug ON stores(custom_slug) WHERE custom_slug IS NOT NULL'
+  );
 }

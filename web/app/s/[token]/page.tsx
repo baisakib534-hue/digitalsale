@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getDb } from '../../../lib/db';
-import { getStoreByToken, parseSocials } from '../../../lib/stores';
+import { getStoreByWhiteLabel, parseSocials, parseTheme } from '../../../lib/stores';
 import { stockInfo } from '../../../lib/stock';
 import { formatUsd } from '../../../lib/format';
 import { SocialRow } from '../../../components/Whitelabel';
@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: { params: { token: string } }): Promise<Metadata> {
   const db = getDb();
-  const store = getStoreByToken(db, params.token);
+  const store = getStoreByWhiteLabel(db, params.token);
   return { title: { absolute: store ? `${store.name} — Store` : 'Store' } };
 }
 
@@ -24,17 +24,19 @@ interface WLProduct {
 }
 
 /**
- * White-label storefront: /s/[token].
+ * White-label storefront: /s/[token] or /s/<custom-slug>.
  * Chromeless — only the seller's branding. No Digitalsale header, footer,
  * or branding anywhere. Buyers check out through our payment gateway.
  * Designed to be embedded as the seller's own Telegram Mini App.
+ * v13: seller-customizable theme (accent, mode, layout, sections).
  */
 export default function WhitelabelStorefront({ params }: { params: { token: string } }) {
   const db = getDb();
-  const store = getStoreByToken(db, params.token);
+  const store = getStoreByWhiteLabel(db, params.token);
   if (!store) notFound();
 
   const socials = parseSocials(store.socials);
+  const theme = parseTheme(store.theme_json);
   const rows = db
     .prepare(
       `SELECT id, title, price_usd, cover_url, stock_limit
@@ -45,16 +47,22 @@ export default function WhitelabelStorefront({ params }: { params: { token: stri
   const products = rows.filter((r) => !stockInfo(db, r).soldOut);
 
   return (
-    <div className="wl">
+    <div
+      className="wl"
+      data-theme={theme.mode === 'auto' ? undefined : theme.mode}
+      style={{ '--wl-accent': theme.accent } as React.CSSProperties}
+    >
       {/* Banner */}
-      <div
-        className="wl-banner"
-        style={
-          store.banner_url
-            ? { backgroundImage: `url(${store.banner_url})` }
-            : undefined
-        }
-      />
+      {theme.showBanner && (
+        <div
+          className="wl-banner"
+          style={
+            store.banner_url
+              ? { backgroundImage: `url(${store.banner_url})` }
+              : undefined
+          }
+        />
+      )}
       <div className="wrap" style={{ paddingBottom: 72 }}>
         {/* Identity */}
         <div className="wl-identity">
@@ -69,9 +77,11 @@ export default function WhitelabelStorefront({ params }: { params: { token: stri
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 className="wl-name">{store.name}</h1>
             {store.bio && <p className="wl-bio">{store.bio}</p>}
-            <div style={{ marginTop: 10 }}>
-              <SocialRow socials={socials} />
-            </div>
+            {theme.showSocials && (
+              <div style={{ marginTop: 10 }}>
+                <SocialRow socials={socials} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -80,7 +90,7 @@ export default function WhitelabelStorefront({ params }: { params: { token: stri
         {products.length === 0 ? (
           <p style={{ color: 'var(--muted)' }}>Nothing here yet — check back soon.</p>
         ) : (
-          <div className="product-grid">
+          <div className={theme.layout === 'list' ? 'wl-list' : 'product-grid'}>
             {products.map((p) => (
               <Link key={p.id} href={`/s/${params.token}/p/${p.id}`} className="wl-card">
                 <span className="wl-card-cover">

@@ -567,6 +567,15 @@ tr:last-child td { border-bottom: none; }
 }
 .wl-card-price { font-weight: 700; font-size: 16px; }
 
+/* v13: storefront theme customizer — seller's accent color + list layout. */
+.wl { --wl-accent: #EA580C; }
+.wl .wl-card-price { color: var(--wl-accent); }
+.wl .wl-logo-fallback { background: color-mix(in srgb, var(--wl-accent) 14%, var(--card)); color: var(--wl-accent); }
+.wl-list { display: grid; gap: 12px; }
+.wl-list .wl-card { display: flex; align-items: center; gap: 16px; }
+.wl-list .wl-card-cover { width: 120px; flex: none; aspect-ratio: 1; border-radius: 12px; overflow: hidden; }
+.wl-list .wl-card-body { padding: 12px 16px 12px 0; }
+
 /* v12: store hero banner support */
 .store-hero { position: relative; overflow: hidden; }
 .store-hero .wrap { display: flex; gap: 24px; align-items: center; width: 100%; }

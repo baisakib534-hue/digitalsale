@@ -83,6 +83,8 @@ export interface StoreRow {
   banner_url: string | null;
   socials: string;
   whitelabel_token: string | null;
+  custom_slug: string | null;
+  theme_json: string | null;
   payout_usdt_address: string;
   status: string;
 }
@@ -94,6 +96,141 @@ export function getStoreByToken(db: Database.Database, token: string): StoreRow 
     .prepare('SELECT * FROM stores WHERE whitelabel_token = ? AND status = ?')
     .get(token, 'active') as StoreRow | undefined;
   return row;
+}
+
+/**
+ * v13: white-label lookup by token OR custom slug. Custom slugs never contain
+ * '_' so they can never collide with st_… tokens. Only active stores.
+ */
+export function getStoreByWhiteLabel(db: Database.Database, tokenOrSlug: string): StoreRow | undefined {
+  if (!tokenOrSlug) return undefined;
+  if (tokenOrSlug.startsWith('st_')) return getStoreByToken(db, tokenOrSlug);
+  const slug = normalizeCustomSlug(tokenOrSlug);
+  if (!slug.ok) return undefined;
+  const row = db
+    .prepare('SELECT * FROM stores WHERE custom_slug = ? AND status = ?')
+    .get(slug.value, 'active') as StoreRow | undefined;
+  return row;
+}
+
+/* ------------------------------------------------------------------ */
+/* v13: customizable store links — /s/<custom-slug>, unique per store.  */
+/* ------------------------------------------------------------------ */
+
+/** Slugs that would shadow real site routes — never assignable to a store. */
+const RESERVED_SLUGS = new Set([
+  'api', 's', 'auth', 'market', 'dashboard', 'sell', 'product', 'products',
+  'store', 'stores', 'checkout', 'wishlist', 'affiliates', 'affiliate',
+  'docs', 'account', 'settings', 'admin', 'support', 'help', 'login',
+  'signup', 'signin', 'signout', 'logout', 'static', 'assets', 'images',
+  'favicon.ico', 'robots.txt', 'sitemap.xml', 'about', 'terms', 'privacy',
+  'contact', 'blog', 'new', 'edit', 'create', 'search', 'cart', 'orders',
+  'purchases', 'sales', 'payouts', 'notifications', 'messages', 'invite',
+  'verify', 'confirm', 'reset', 'callback', 'webhook', 'health', 'status',
+  'www', 'app', 'dev', 'test', 'demo', 'null', 'undefined',
+]);
+
+export type SlugCheck = { ok: true; value: string } | { ok: false; reason: 'empty' | 'invalid' | 'reserved' | 'taken' };
+
+/** Validate + canonicalize a custom store slug. Uniqueness is checked by setCustomSlug. */
+export function normalizeCustomSlug(raw: unknown): SlugCheck {
+  const s = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  if (!s) return { ok: false, reason: 'empty' };
+  if (s.length < 3 || s.length > 30 || !/^[a-z0-9]([a-z0-9-]{1,28}[a-z0-9])?$/.test(s)) {
+    return { ok: false, reason: 'invalid' };
+  }
+  if (RESERVED_SLUGS.has(s)) return { ok: false, reason: 'reserved' };
+  return { ok: true, value: s };
+}
+
+/**
+ * Claim (or release with null) a store's custom slug. First come, first served —
+ * the UNIQUE index guarantees no two stores share a link.
+ */
+export function setCustomSlug(
+  db: Database.Database,
+  storeId: string,
+  raw: unknown
+): { ok: true } | { ok: false; reason: 'empty' | 'invalid' | 'reserved' | 'taken' } {
+  if (raw === null || (typeof raw === 'string' && raw.trim() === '')) {
+    db.prepare('UPDATE stores SET custom_slug = NULL WHERE id = ?').run(storeId);
+    return { ok: true };
+  }
+  const check = normalizeCustomSlug(raw);
+  if (!check.ok) return check;
+  const clash = db
+    .prepare('SELECT id FROM stores WHERE custom_slug = ? AND id != ?')
+    .get(check.value, storeId) as { id: string } | undefined;
+  if (clash) return { ok: false, reason: 'taken' };
+  try {
+    db.prepare('UPDATE stores SET custom_slug = ? WHERE id = ?').run(check.value, storeId);
+  } catch {
+    return { ok: false, reason: 'taken' };
+  }
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/* v13: storefront theme customizer (Shopify-style, simplified).        */
+/* ------------------------------------------------------------------ */
+
+export interface StoreTheme {
+  /** Accent color hex, e.g. #EA580C. */
+  accent: string;
+  /** Storefront color scheme: follow the site theme, or force light/dark. */
+  mode: 'auto' | 'light' | 'dark';
+  /** Product grid layout. */
+  layout: 'grid' | 'list';
+  /** Show the banner hero. */
+  showBanner: boolean;
+  /** Show the social links row. */
+  showSocials: boolean;
+}
+
+export const DEFAULT_THEME: StoreTheme = {
+  accent: '#EA580C',
+  mode: 'auto',
+  layout: 'grid',
+  showBanner: true,
+  showSocials: true,
+};
+
+const ACCENT_PRESETS = new Set([
+  '#EA580C', '#DC2626', '#D97706', '#CA8A04', '#65A30D', '#16A34A',
+  '#0D9488', '#0891B2', '#2563EB', '#4F46E5', '#9333EA', '#DB2777',
+  '#1C1917', '#64748B',
+]);
+
+/** Parse stored theme_json safely, falling back to defaults. */
+export function parseTheme(raw: string | null): StoreTheme {
+  if (!raw) return { ...DEFAULT_THEME };
+  try {
+    const t = normalizeTheme(JSON.parse(raw));
+    return t;
+  } catch {
+    return { ...DEFAULT_THEME };
+  }
+}
+
+/** Sanitize seller-supplied theme input — never trust it verbatim. */
+export function normalizeTheme(input: unknown): StoreTheme {
+  const o = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>;
+  let accent = typeof o.accent === 'string' ? o.accent.trim() : DEFAULT_THEME.accent;
+  if (!/^#[0-9a-fA-F]{6}$/.test(accent)) accent = DEFAULT_THEME.accent;
+  // Only allowlisted presets or any valid hex — custom hex is fine, it is just a color.
+  const mode = o.mode === 'light' || o.mode === 'dark' ? o.mode : 'auto';
+  const layout = o.layout === 'list' ? 'list' : 'grid';
+  return {
+    accent: accent.toUpperCase(),
+    mode,
+    layout,
+    showBanner: o.showBanner === false ? false : true,
+    showSocials: o.showSocials === false ? false : true,
+  };
+}
+
+export function themeAccentPresets(): string[] {
+  return [...ACCENT_PRESETS];
 }
 
 /** Seller API auth: Bearer dst_<token> → active store. */

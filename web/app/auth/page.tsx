@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getWebApp, haptic, inTelegram } from '../../lib/telegram-client';
 import { BRAND } from '../../lib/brand';
 import { IconCheck } from '../../components/doodles';
+import TelegramLoginButton from '../../components/TelegramLoginButton';
 
 
 function AuthForm() {
@@ -18,6 +19,7 @@ function AuthForm() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [remember, setRemember] = useState(true);
   const tgAttempted = useRef(false);
 
   // Telegram auto-login: one attempt on mount when inside the Mini App.
@@ -66,7 +68,7 @@ function AuthForm() {
         body: JSON.stringify(
           mode === 'signup'
             ? { name: name.trim(), email: em, password }
-            : { email: em, password }
+            : { email: em, password, remember }
         ),
       });
       const data = (await res.json()) as { error?: string };
@@ -162,10 +164,22 @@ function AuthForm() {
             {error}
           </div>
         )}
+        {mode === 'login' && (
+          <label className="check-row" style={{ marginBottom: 16 }}>
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              disabled={busy}
+            />
+            <span style={{ fontSize: 14.5 }}>Remember me on this device</span>
+          </label>
+        )}
         <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={busy}>
           {busy ? 'One moment…' : mode === 'signup' ? 'Create account' : 'Log in'}
         </button>
       </form>
+      <TelegramLoginButton />
       <div className="form-note" style={{ marginTop: 24 }}>
         <strong>Exploring the demo?</strong> Log in as the demo seller:{' '}
         <code>june.fernfield@gmail.com</code> / <code>DemoPass123!</code>

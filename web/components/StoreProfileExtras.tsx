@@ -22,7 +22,18 @@ export default function StoreProfileExtras({ storeSlug }: { storeSlug: string })
   const [uploadBusy, setUploadBusy] = useState<'logo' | 'banner' | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [wlBusy, setWlBusy] = useState(false);
-  const [copied, setCopied] = useState<'link' | 'token' | null>(null);
+  const [copied, setCopied] = useState<'link' | 'token' | 'custom' | null>(null);
+
+  // v13: customizable store link
+  const [customSlug, setCustomSlug] = useState<string | null>(null);
+  const [slugInput, setSlugInput] = useState('');
+  const [slugBusy, setSlugBusy] = useState(false);
+  const [slugError, setSlugError] = useState<string | null>(null);
+
+  // v13: storefront theme customizer
+  const [theme, setTheme] = useState({ accent: '#EA580C', mode: 'auto', layout: 'grid', showBanner: true, showSocials: true });
+  const [themeBusy, setThemeBusy] = useState(false);
+  const [themeSaved, setThemeSaved] = useState(false);
 
   const [tokens, setTokens] = useState<ApiTokenRow[]>([]);
   const [tokenName, setTokenName] = useState('');
@@ -37,11 +48,31 @@ export default function StoreProfileExtras({ storeSlug }: { storeSlug: string })
       const res = await fetch(`/api/stores/${enc}`, { cache: 'no-store' });
       if (!res.ok) return;
       const data = (await res.json()) as {
-        store: { avatar_url: string | null; banner_url: string | null; whitelabel_token: string | null };
+        store: {
+          avatar_url: string | null;
+          banner_url: string | null;
+          whitelabel_token: string | null;
+          custom_slug: string | null;
+          theme_json: string | null;
+        };
       };
       setLogoUrl(data.store.avatar_url);
       setBannerUrl(data.store.banner_url);
       setWlToken(data.store.whitelabel_token);
+      setCustomSlug(data.store.custom_slug ?? null);
+      setSlugInput(data.store.custom_slug ?? '');
+      try {
+        const t = JSON.parse(data.store.theme_json ?? '{}');
+        setTheme({
+          accent: typeof t.accent === 'string' ? t.accent : '#EA580C',
+          mode: t.mode === 'light' || t.mode === 'dark' ? t.mode : 'auto',
+          layout: t.layout === 'list' ? 'list' : 'grid',
+          showBanner: t.showBanner !== false,
+          showSocials: t.showSocials !== false,
+        });
+      } catch {
+        /* keep defaults */
+      }
     } catch {
       /* best effort */
     }
@@ -106,7 +137,67 @@ export default function StoreProfileExtras({ storeSlug }: { storeSlug: string })
     return `${window.location.origin}/s/${wlToken}`;
   }
 
-  async function copy(text: string, which: 'link' | 'token') {
+  function customUrl(): string {
+    if (!customSlug) return '';
+    return `${window.location.origin}/s/${customSlug}`;
+  }
+
+  const SLUG_ERRORS: Record<string, string> = {
+    'slug-empty': 'Type a link name, or clear it to remove your custom link.',
+    'slug-invalid': 'Use 3–30 characters: lowercase letters, numbers and hyphens.',
+    'slug-reserved': 'That name is reserved — pick another one.',
+    'slug-taken': 'Someone already took that link — try another one.',
+  };
+
+  async function saveSlug() {
+    setSlugError(null);
+    setSlugBusy(true);
+    try {
+      const res = await fetch(`/api/stores/${enc}/custom-link`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ slug: slugInput.trim() === '' ? null : slugInput }),
+      });
+      const data = (await res.json()) as { custom_slug?: string | null; error?: string };
+      if (!res.ok) {
+        setSlugError(SLUG_ERRORS[data.error ?? ''] ?? 'Could not save the link.');
+        return;
+      }
+      setCustomSlug(data.custom_slug ?? null);
+      setSlugInput(data.custom_slug ?? '');
+      haptic('success');
+    } catch {
+      setSlugError('Network error.');
+    } finally {
+      setSlugBusy(false);
+    }
+  }
+
+  async function saveTheme(next: typeof theme) {
+    setTheme(next);
+    setThemeSaved(false);
+    setThemeBusy(true);
+    try {
+      const res = await fetch(`/api/stores/${enc}/theme`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ theme: next }),
+      });
+      if (res.ok) {
+        setThemeSaved(true);
+        haptic('success');
+        setTimeout(() => setThemeSaved(false), 2000);
+      }
+    } catch {
+      /* best effort */
+    } finally {
+      setThemeBusy(false);
+    }
+  }
+
+  const ACCENTS = ['#EA580C', '#DC2626', '#D97706', '#65A30D', '#16A34A', '#0D9488', '#0891B2', '#2563EB', '#4F46E5', '#9333EA', '#DB2777', '#1C1917'];
+
+  async function copy(text: string, which: 'link' | 'token' | 'custom') {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -237,6 +328,159 @@ export default function StoreProfileExtras({ storeSlug }: { storeSlug: string })
       ) : (
         <p style={{ color: 'var(--muted)', fontSize: 14 }}>Loading…</p>
       )}
+
+      {/* v13: customizable store link */}
+      <h3 style={{ marginTop: 36 }}>Your custom store link</h3>
+      <p style={{ color: 'var(--muted)', fontSize: 14.5, maxWidth: 640 }}>
+        Pick a readable link for your storefront instead of the random one above — first come,
+        first served. One link per store, and a link can only belong to one store.
+      </p>
+      <div style={{ display: 'flex', gap: 8, maxWidth: 480 }}>
+        <div style={{ display: 'flex', alignItems: 'center', flex: 1, border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden', background: 'var(--card)' }}>
+          <span style={{ padding: '0 4px 0 16px', color: 'var(--muted)', fontSize: 14, whiteSpace: 'nowrap' }}>
+            {typeof window !== 'undefined' ? `${window.location.host}/s/` : '/s/'}
+          </span>
+          <input
+            value={slugInput}
+            onChange={(e) => setSlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+            placeholder="mystore"
+            maxLength={30}
+            disabled={slugBusy}
+            style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', outline: 'none', padding: '12px 16px 12px 0', fontSize: 15, color: 'var(--ink)' }}
+            aria-label="Custom store link"
+          />
+        </div>
+        <button type="button" className="btn btn-dark btn-sm" style={{ flex: 'none' }} disabled={slugBusy} onClick={() => void saveSlug()}>
+          {slugBusy ? '…' : 'Save'}
+        </button>
+      </div>
+      {slugError && <div className="form-error" role="alert" style={{ marginTop: 12, maxWidth: 480 }}>{slugError}</div>}
+      {customSlug && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 12, maxWidth: 640 }}>
+          <code className="ref-code" style={{ fontSize: 13, wordBreak: 'break-all' }}>{customUrl()}</code>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => void copy(customUrl(), 'custom')}>
+            {copied === 'custom' ? 'Copied!' : 'Copy'}
+          </button>
+        </div>
+      )}
+      <p className="hint">Clear the field and save to remove your custom link — the random link above keeps working.</p>
+
+      {/* v13: storefront design customizer */}
+      <h3 style={{ marginTop: 36 }}>Storefront design</h3>
+      <p style={{ color: 'var(--muted)', fontSize: 14.5, maxWidth: 640 }}>
+        Customize how your white-label storefront looks — changes apply instantly.
+      </p>
+      <div className="panel" style={{ maxWidth: 640 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>Accent color</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
+          {ACCENTS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-label={`Accent ${c}`}
+              onClick={() => void saveTheme({ ...theme, accent: c })}
+              style={{
+                width: 32, height: 32, borderRadius: '50%', background: c, cursor: 'pointer',
+                border: theme.accent.toUpperCase() === c ? '3px solid var(--ink)' : '1px solid var(--line)',
+                outline: 'none',
+              }}
+            />
+          ))}
+          <input
+            type="color"
+            value={/^#[0-9a-fA-F]{6}$/.test(theme.accent) ? theme.accent : '#EA580C'}
+            onChange={(e) => void saveTheme({ ...theme, accent: e.target.value.toUpperCase() })}
+            title="Custom color"
+            style={{ width: 32, height: 32, border: '1px dashed var(--line)', borderRadius: '50%', padding: 2, background: 'transparent', cursor: 'pointer' }}
+          />
+        </div>
+        <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>Color scheme</div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+          {(['auto', 'light', 'dark'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              className={`btn btn-sm ${theme.mode === m ? 'btn-dark' : 'btn-outline'}`}
+              onClick={() => void saveTheme({ ...theme, mode: m })}
+            >
+              {m === 'auto' ? 'Auto' : m === 'light' ? 'Light' : 'Dark'}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 10 }}>Product layout</div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+          {(['grid', 'list'] as const).map((l) => (
+            <button
+              key={l}
+              type="button"
+              className={`btn btn-sm ${theme.layout === l ? 'btn-dark' : 'btn-outline'}`}
+              onClick={() => void saveTheme({ ...theme, layout: l })}
+            >
+              {l === 'grid' ? 'Grid' : 'List'}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gap: 10 }}>
+          {([
+            ['showBanner', 'Show banner'],
+            ['showSocials', 'Show social links'],
+          ] as const).map(([key, label]) => (
+            <label key={key} className="check-row">
+              <input
+                type="checkbox"
+                checked={theme[key]}
+                onChange={(e) => void saveTheme({ ...theme, [key]: e.target.checked })}
+              />
+              <span style={{ fontSize: 14.5 }}>{label}</span>
+            </label>
+          ))}
+        </div>
+        <div style={{ marginTop: 12, fontSize: 13, color: themeSaved ? 'var(--mint)' : 'var(--muted)' }}>
+          {themeBusy ? 'Saving…' : themeSaved ? 'Saved ✓' : ' '}
+        </div>
+      </div>
+      {/* Live preview */}
+      <div style={{ marginTop: 16, maxWidth: 640 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 8 }}>Preview</div>
+        <div
+          data-theme={theme.mode === 'auto' ? undefined : theme.mode}
+          style={{
+            border: '1px solid var(--line)', borderRadius: 16, overflow: 'hidden',
+            background: 'var(--card)',
+            ['--wl-accent' as string]: theme.accent,
+          }}
+        >
+          {theme.showBanner && (
+            <div style={{ height: 72, background: bannerUrl ? `url(${bannerUrl}) center/cover` : 'var(--paper-2)' }} />
+          )}
+          <div style={{ padding: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt="" style={{ width: 44, height: 44, borderRadius: 12, objectFit: 'cover' }} />
+            ) : (
+              <span style={{
+                width: 44, height: 44, borderRadius: 12, display: 'grid', placeItems: 'center',
+                fontWeight: 700, background: 'var(--paper-2)', color: theme.accent, fontSize: 20,
+              }}>S</span>
+            )}
+            <div>
+              <div style={{ fontWeight: 700 }}>Your store</div>
+              {theme.showSocials && <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>social links row</div>}
+            </div>
+          </div>
+          <div className={theme.layout === 'list' ? 'wl-list' : 'product-grid'} style={{ padding: '0 16px 16px', gap: 10 }}>
+            {[1, 2, 3].map((i) => (
+              <span key={i} className="wl-card" style={theme.layout === 'list' ? { display: 'flex', alignItems: 'center', gap: 12 } : undefined}>
+                <span className="wl-card-cover" style={theme.layout === 'list' ? { width: 72, flex: 'none', aspectRatio: '1', borderRadius: 10, overflow: 'hidden' } : undefined} />
+                <span className="wl-card-body" style={theme.layout === 'list' ? { padding: '10px 12px 10px 0' } : undefined}>
+                  <span className="wl-card-title" style={{ fontSize: 13 }}>Product {i}</span>
+                  <span className="wl-card-price">$9.00</span>
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* API tokens */}
       <h3 style={{ marginTop: 36 }}>API tokens</h3>

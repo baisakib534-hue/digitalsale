@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getDb } from '../../../../../lib/db';
-import { getStoreByToken } from '../../../../../lib/stores';
+import { getStoreByWhiteLabel } from '../../../../../lib/stores';
 import { stockInfo } from '../../../../../lib/stock';
 import { formatUsd, timeAgo } from '../../../../../lib/format';
 import BuyPanel from '../../../../../components/BuyPanel';
@@ -16,7 +16,7 @@ export async function generateMetadata({
   params: { token: string; id: string };
 }): Promise<Metadata> {
   const db = getDb();
-  const store = getStoreByToken(db, params.token);
+  const store = getStoreByWhiteLabel(db, params.token);
   if (!store) return { title: { absolute: 'Store' } };
   const row = db.prepare('SELECT title FROM products WHERE id = ? AND store_id = ?').get(
     params.id,
@@ -28,7 +28,7 @@ export async function generateMetadata({
 /** White-label product page: seller branding only, our payment gateway at checkout. */
 export default function WhitelabelProduct({ params }: { params: { token: string; id: string } }) {
   const db = getDb();
-  const store = getStoreByToken(db, params.token);
+  const store = getStoreByWhiteLabel(db, params.token);
   if (!store) notFound();
 
   const row = db

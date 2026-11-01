@@ -7,6 +7,7 @@ import { normalizeGmail } from '../../../../lib/email';
 interface LoginBody {
   email?: unknown;
   password?: unknown;
+  remember?: unknown;
 }
 
 interface UserRow {
@@ -50,6 +51,8 @@ export async function POST(req: Request) {
       telegramVerified: user.telegram_verified === 1,
     },
   });
-  res.headers.append('Set-Cookie', sessionCookieHeader(createSessionToken(user.id)));
+  // v13: "Remember me" → 30-day session; otherwise a 1-day session.
+  const ttl = body.remember === false ? 60 * 60 * 24 : 60 * 60 * 24 * 30;
+  res.headers.append('Set-Cookie', sessionCookieHeader(createSessionToken(user.id, ttl), ttl));
   return res;
 }
