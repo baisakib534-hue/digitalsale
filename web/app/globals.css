@@ -385,17 +385,6 @@ tr:last-child td { border-bottom: none; }
 .marquee { overflow: hidden; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); background: var(--card); }
 .marquee-track { display: flex; gap: 48px; padding: 16px 0; animation: marquee 30s linear infinite; width: max-content; }
 @keyframes marquee { to { transform: translateX(-50%); } }
-/* v14.5: product bento — calm art-directed grid, products visible on entry. */
-.product-bento { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; grid-auto-flow: dense; }
-.bento-item .product-card { height: 100%; }
-.bento-lg { grid-column: span 2; grid-row: span 2; }
-.bento-lg .product-card .cover { aspect-ratio: 16 / 11; }
-.bento-wide { grid-column: span 2; }
-@media (max-width: 900px) {
-  .product-bento { grid-template-columns: repeat(2, 1fr); gap: 14px; }
-  .bento-lg { grid-column: span 2; grid-row: span 1; }
-  .bento-wide { grid-column: span 2; }
-}
 
 /* ---------- store page ---------- */
 .store-hero { background: var(--card); border: 1px solid var(--line-soft); border-radius: var(--r-lg); padding: 40px; margin-bottom: 32px; display: flex; gap: 24px; align-items: center; }

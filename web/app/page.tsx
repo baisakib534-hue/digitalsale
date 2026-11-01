@@ -7,7 +7,7 @@ import EmptyState, { SproutGlyph } from '../components/EmptyState';
 import LandingSearch from '../components/LandingSearch';
 import RefCapture from '../components/RefCapture';
 import Reveal, { RevealGroup, RevealItem } from '../components/Reveal';
-import { Stamp, ArrowDoodle, IconShield, IconBolt, IconFlag, IconCoin } from '../components/doodles';
+import { ArrowDoodle, IconShield, IconBolt, IconFlag, IconCoin } from '../components/doodles';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,13 +85,6 @@ export default function LandingPage() {
       {/* ---------- hero ---------- */}
       <section className="hero-slim">
         <div className="wrap">
-          <Reveal>
-            <div className="hero-kicker">
-              <Stamp tone="ember">Telegram-verified sellers</Stamp>
-              <Stamp tone="moss">10% flat fee</Stamp>
-              <Stamp>Every file scanned</Stamp>
-            </div>
-          </Reveal>
           <Reveal delay={0.08}>
             <h1>
               Digital goods,{' '}
@@ -143,16 +136,13 @@ export default function LandingPage() {
             </div>
           </div>
         ) : (
-          <div className="product-bento" style={{ marginTop: 28 }}>
-            {latest.map((p, i) => (
-              <div
-                key={p.id}
-                className={`bento-item${i === 0 ? ' bento-lg' : ''}${i === 5 ? ' bento-wide' : ''}`}
-              >
+          <RevealGroup className="product-grid" style={{ marginTop: 28 }}>
+            {latest.map((p) => (
+              <RevealItem key={p.id}>
                 <ProductCard product={p} />
-              </div>
+              </RevealItem>
             ))}
-          </div>
+          </RevealGroup>
         )}
       </section>
 
