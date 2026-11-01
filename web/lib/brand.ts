@@ -3,7 +3,7 @@
  */
 export const BRAND = {
   name: 'Digitalsale',
-  tagline: 'Gumroad where you can actually get paid.',
+  tagline: 'Sell digital goods. Actually get paid.',
   description:
     'Digitalsale is a borderless marketplace for digital creators. Sell presets, templates, ebooks and UI kits directly to your audience — and actually receive the money, in USDT, anywhere in the world.',
   feePercent: 10,
