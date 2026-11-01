@@ -16,13 +16,11 @@ interface Me {
 
 export function BrandMark() {
   return (
-    <span className="brand-mark" aria-hidden>
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path
-          d="M10 2.5c.9 2.6 2.4 4.1 5.2 4.6-2.8.5-4.3 2-5.2 4.6-.9-2.6-2.4-4.1-5.2-4.6 2.8-.5 4.3-2 5.2-4.6z"
-          fill="#F5EFE0"
-        />
-        <path d="M10 12.5v5" stroke="#F5EFE0" strokeWidth="2" strokeLinecap="round" />
+    <span className="brand-mark" aria-hidden style={{ background: 'none', padding: 0 }}>
+      <svg width="34" height="34" viewBox="0 0 64 64" fill="none">
+        <rect width="64" height="64" rx="14" fill="#1C1917" />
+        <path d="M18 18h20l12 12v20H18z" fill="#EA580C" />
+        <circle cx="40.25" cy="29" r="3" fill="#1C1917" />
       </svg>
     </span>
   );

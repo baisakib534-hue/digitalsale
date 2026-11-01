@@ -36,6 +36,10 @@ export const metadata: Metadata = {
     template: `%s · ${BRAND.name}`,
   },
   description: BRAND.description,
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/logo-512.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
