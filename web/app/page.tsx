@@ -146,17 +146,6 @@ export default function LandingPage() {
         )}
       </section>
 
-      {/* ---------- marquee ---------- */}
-      <div className="marquee" aria-hidden>
-        <div className="marquee-track">
-          {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
-            <span key={i}>
-              {item} <span className="tick-star">✦</span>
-            </span>
-          ))}
-        </div>
-      </div>
-
       {/* ---------- trust strip ---------- */}
       <div className="trust-strip">
         <div className="wrap">
@@ -253,6 +242,17 @@ export default function LandingPage() {
           </RevealGroup>
         </div>
       </section>
+
+      {/* ---------- marquee ---------- */}
+      <div className="marquee" aria-hidden>
+        <div className="marquee-track">
+          {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
+            <span key={i}>
+              {item} <span className="tick-star">✦</span>
+            </span>
+          ))}
+        </div>
+      </div>
 
       {/* ---------- buyer CTA ---------- */}
       <section className="section-tight">
