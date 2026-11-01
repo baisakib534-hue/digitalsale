@@ -143,14 +143,25 @@ export default function LandingPage() {
             </div>
           </div>
         ) : (
-          <div className="product-marquee" style={{ marginTop: 24 }}>
-            <div className="product-marquee-track">
-              {[...latest, ...latest].map((p, i) => (
-                <div className="product-marquee-item" key={`${p.id}-${i}`}>
-                  <ProductCard product={p} />
+          <div className="product-wall" style={{ marginTop: 24 }}>
+            {[0, 1, 2].map((row) => {
+              const rowProducts = latest.filter((_, i) => i % 3 === row);
+              const tripled = [...rowProducts, ...rowProducts, ...rowProducts];
+              return (
+                <div className="product-wall-row" key={row}>
+                  <div
+                    className={`product-marquee-track${row % 2 === 1 ? ' reverse' : ''}`}
+                    style={{ animationDuration: `${78 + row * 6}s` }}
+                  >
+                    {[...tripled, ...tripled].map((p, i) => (
+                      <div className="product-marquee-item" key={`${p.id}-${row}-${i}`}>
+                        <ProductCard product={p} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
       </section>
