@@ -385,20 +385,17 @@ tr:last-child td { border-bottom: none; }
 .marquee { overflow: hidden; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); background: var(--card); }
 .marquee-track { display: flex; gap: 48px; padding: 16px 0; animation: marquee 30s linear infinite; width: max-content; }
 @keyframes marquee { to { transform: translateX(-50%); } }
-@keyframes marquee-rev { from { transform: translateX(-50%); } to { transform: translateX(0); } }
-/* v14.4: product wall — 3 auto-scrolling rows, alternating directions, slow. */
-.product-wall { display: flex; flex-direction: column; gap: 22px; }
-.product-wall-row { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
-.product-marquee-track { display: flex; gap: 20px; width: max-content; padding: 4px 10px 8px; animation: marquee 80s linear infinite; }
-.product-marquee-track.reverse { animation-name: marquee-rev; }
-.product-wall-row:hover .product-marquee-track { animation-play-state: paused; }
-.product-marquee-item { width: 280px; flex-shrink: 0; }
-/* v14.4: uniform card heights in the wall — title clamped to exactly 2 lines. */
-.product-wall .product-card h3 {
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  overflow: hidden; min-height: calc(2 * 1.4em); line-height: 1.4;
+/* v14.5: product bento — calm art-directed grid, products visible on entry. */
+.product-bento { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; grid-auto-flow: dense; }
+.bento-item .product-card { height: 100%; }
+.bento-lg { grid-column: span 2; grid-row: span 2; }
+.bento-lg .product-card .cover { aspect-ratio: 16 / 11; }
+.bento-wide { grid-column: span 2; }
+@media (max-width: 900px) {
+  .product-bento { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .bento-lg { grid-column: span 2; grid-row: span 1; }
+  .bento-wide { grid-column: span 2; }
 }
-@media (max-width: 560px) { .product-marquee-item { width: 220px; } .product-wall { gap: 14px; } }
 
 /* ---------- store page ---------- */
 .store-hero { background: var(--card); border: 1px solid var(--line-soft); border-radius: var(--r-lg); padding: 40px; margin-bottom: 32px; display: flex; gap: 24px; align-items: center; }
