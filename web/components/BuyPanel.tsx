@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatUsd } from '../lib/format';
 import { haptic } from '../lib/telegram-client';
-import { BRAND } from '../lib/brand';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -169,8 +168,7 @@ export default function BuyPanel({ productId, priceCents }: { productId: string;
         )}
       </button>
       <p className="form-note" style={{ marginTop: 16 }}>
-        Seller keeps 90% — {BRAND.name} takes a flat {BRAND.feePercent}% fee. Paid in crypto via
-        NOWPayments; download links arrive instantly after payment.
+        Paid in crypto via NOWPayments — download links arrive instantly after payment.
       </p>
     </form>
   );

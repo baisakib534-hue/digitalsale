@@ -174,14 +174,38 @@ img { max-width: 100%; }
 .page-hero h1 { max-width: 800px; }
 .page-hero .lede { margin-bottom: 0; }
 .hero-slim { padding: 48px 0 24px; }
-.hero-kicker { margin-bottom: 12px; }
+.hero-kicker { margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 10px; }
 .hero-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; color: var(--muted); font-size: 14px; }
 .hero-doodle-row { display: none; }
 
-.landing-search {
-  display: flex; gap: 10px; margin-top: 28px; max-width: 560px;
+/* Unified search bar (v12.1): one pill — icon + input + clear + submit. */
+.searchbar {
+  display: flex; align-items: center; gap: 4px;
+  margin-top: 28px; max-width: 560px;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 6px 6px 16px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.landing-search .input { flex: 1; }
+.searchbar:focus-within { border-color: var(--ink); box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08); }
+.searchbar-icon { flex: none; color: var(--muted); }
+.searchbar-input {
+  flex: 1; min-width: 0;
+  border: none; background: transparent; outline: none;
+  font-family: var(--font-ui); font-size: 15px; color: var(--ink);
+  padding: 10px 4px;
+}
+.searchbar-input::placeholder { color: var(--muted); }
+.searchbar-input::-webkit-search-cancel-button { display: none; }
+.searchbar-clear {
+  flex: none; width: 28px; height: 28px; border-radius: 50%;
+  border: none; background: var(--paper-2); color: var(--muted);
+  font-size: 18px; line-height: 1; cursor: pointer;
+  display: grid; place-items: center;
+}
+.searchbar-clear:hover { color: var(--ink); }
+.searchbar-go { flex: none; }
 
 /* ---------- buttons ---------- */
 .btn {
@@ -265,7 +289,7 @@ img { max-width: 100%; }
 .stamp {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 999px;
-  border: 1.5px dashed var(--line); color: var(--muted); background: #fff;
+  border: 1.5px dashed var(--line); color: var(--muted); background: var(--card);
 }
 .stamp-ember { border-color: var(--ember); color: var(--ember-deep); background: var(--ember-soft); }
 .stamp-moss { border-color: var(--mint); color: var(--mint); background: var(--mint-soft); }
@@ -458,14 +482,20 @@ tr:last-child td { border-bottom: none; }
 @media (max-width: 560px) {
   .wrap { padding: 0 16px; }
   .hide-mobile { display: none !important; }
+  /* v12.1: Etsy/Gumroad-style 2-column product grid on phones */
+  .product-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .product-card .body { padding: 12px 12px 14px; gap: 6px; }
+  .product-card h3 { font-size: 0.92rem; }
+  .product-card .cat { font-size: 11px; }
+  .product-card .store { font-size: 12px; }
+  .product-card .foot { padding-top: 6px; flex-wrap: wrap; gap: 8px; }
+  .price { font-size: 1.02rem; }
   .site-header .wrap { gap: 10px; }
   .brand { font-size: 1.15rem; }
   .brand-mark { width: 30px; height: 30px; }
   .section { padding: 48px 0; }
   .page-hero { padding: 48px 0 32px; }
   .form-card, .panel { padding: 24px 20px; }
-  .landing-search { flex-direction: column; }
-  .landing-search .btn { width: 100%; }
   .toolbar .select { width: 100%; }
   .site-footer .cols { grid-template-columns: 1fr; }
 }

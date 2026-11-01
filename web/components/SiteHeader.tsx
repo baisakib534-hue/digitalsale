@@ -89,7 +89,7 @@ export default function SiteHeader() {
           )}
         </nav>
         <div className="header-actions">
-          <span className="fee-note">10% flat fee — keep 90%</span>
+          {me?.hasStore && <span className="fee-note">10% flat fee — keep 90%</span>}
           <ThemeToggle />
           {loaded &&
             (me ? (
