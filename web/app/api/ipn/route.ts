@@ -3,7 +3,7 @@ import { getDb } from '../../../lib/db';
 import { verifyIpn } from '../../../lib/nowpayments';
 import { issueLicenseKey } from '../../../lib/licenses';
 import { incrementDiscountUse } from '../../../lib/discounts';
-import { notifyPurchaseConfirmed } from '../../../lib/bot-notify';
+import { notifyPurchaseConfirmed, cleanupExpiredNotifications } from '../../../lib/bot-notify';
 
 interface IpnBody {
   order_id?: unknown;
@@ -70,6 +70,13 @@ export async function POST(req: Request) {
         // v14: bot purchase-confirmation (main bot + seller's own bot when
         // registered). Never throws; self-deletes after 1 hour.
         await notifyPurchaseConfirmed(db, order.id);
+        // v14.1: sweep expired self-deleting notifications while we're here
+        // (Hobby plan only allows a daily Vercel cron).
+        try {
+          await cleanupExpiredNotifications(db);
+        } catch {
+          /* best-effort */
+        }
       }
     }
     return NextResponse.json({ ok: true });

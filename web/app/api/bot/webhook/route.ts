@@ -6,7 +6,7 @@ import {
   parseVerifyStart,
   sendTelegramMessage,
 } from '../../../../lib/verify';
-import { parseBotCommand } from '../../../../lib/bot-notify';
+import { parseBotCommand, cleanupExpiredNotifications } from '../../../../lib/bot-notify';
 import { formatUsd, shortId, timeAgo } from '../../../../lib/format';
 
 /**
@@ -141,7 +141,16 @@ export async function POST(req: Request) {
 
   // Plain commands.
   const cmd = parseBotCommand(text);
-  if (!cmd) return NextResponse.json({ ok: true }); // not a command — ignore
+  if (!cmd) {
+    // v14.1: lazy cleanup of expired self-deleting notifications (Hobby plan
+    // only allows a daily Vercel cron, so we sweep on bot activity too).
+    try {
+      await cleanupExpiredNotifications(getDb());
+    } catch {
+      /* best-effort */
+    }
+    return NextResponse.json({ ok: true }); // not a command — ignore
+  }
 
   if (cmd.command === 'start') {
     await sendTelegramMessage(chatId, WELCOME_TEXT);
@@ -151,6 +160,11 @@ export async function POST(req: Request) {
     await handlePurchases(chatId, telegramId);
   } else {
     await sendTelegramMessage(chatId, `Unknown command. Try /help.`);
+  }
+  try {
+    await cleanupExpiredNotifications(getDb());
+  } catch {
+    /* best-effort */
   }
   return NextResponse.json({ ok: true });
 }
