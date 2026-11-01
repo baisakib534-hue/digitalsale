@@ -87,6 +87,11 @@ export default function SiteHeader() {
               Wishlist
             </Link>
           )}
+          {me && (
+            <Link href="/history" className={isActive('/history') ? 'active' : ''}>
+              History
+            </Link>
+          )}
         </nav>
         <div className="header-actions">
           {me?.hasStore && <span className="fee-note">10% flat fee — keep 90%</span>}

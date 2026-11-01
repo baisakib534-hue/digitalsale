@@ -235,4 +235,19 @@ export function runMigrations(db: Database.Database): void {
   );
   if (!userColsV132.has('banned_at')) db.exec('ALTER TABLE users ADD COLUMN banned_at TEXT');
   if (!userColsV132.has('ban_reason')) db.exec('ALTER TABLE users ADD COLUMN ban_reason TEXT');
+
+  // 20. v14: bot notification auto-delete queue — payment confirmations the bot
+  // must delete 1 hour after sending (privacy: no lingering purchase receipts).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS bot_notifications (
+      id            TEXT PRIMARY KEY,
+      chat_id       TEXT NOT NULL,
+      message_id    INTEGER NOT NULL,
+      bot           TEXT NOT NULL DEFAULT 'main', -- main | seller
+      bot_token_enc TEXT, -- encrypted seller token; NULL = main bot (env token)
+      delete_at     TEXT NOT NULL,
+      created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_bot_notifications_delete_at ON bot_notifications(delete_at);
+  `);
 }

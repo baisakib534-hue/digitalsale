@@ -6,24 +6,19 @@ import {
   parseVerifyStart,
   sendTelegramMessage,
 } from '../../../../lib/verify';
+import { parseBotCommand } from '../../../../lib/bot-notify';
+import { formatUsd, shortId, timeAgo } from '../../../../lib/format';
 
 /**
  * Telegram webhook receiver for @Digitalsale_bot.
  *
- * Documented update schema (Telegram Bot API):
- * {
- *   "update_id": 123,
- *   "message": {
- *     "message_id": 1,
- *     "from": { "id": 12345, "username": "someone", "first_name": "..." },
- *     "chat": { "id": 12345, "type": "private" },
- *     "text": "/start v_<32-hex-token>"
- *   }
- * }
+ * Commands (v14):
+ *   /start            — welcome + command list
+ *   /start v_<token>  — Telegram verification deep link (consumes the token)
+ *   /help             — command list
+ *   /purchases        — the buyer's order history (paid orders)
  *
- * On `/start v_<token>` the token is consumed: the linked Digitalsale account is
- * marked Telegram-verified and the bot replies with a confirmation. The
- * `x-telegram-bot-api-secret-token` header is validated against
+ * The `x-telegram-bot-api-secret-token` header is validated against
  * TELEGRAM_WEBHOOK_SECRET when set.
  */
 interface TgUser {
@@ -42,6 +37,59 @@ interface TgMessage {
 interface TgUpdate {
   update_id: number;
   message?: TgMessage;
+}
+
+const HELP_TEXT =
+  `🛍 <b>Digitalsale bot commands</b>\n\n` +
+  `/purchases — your order history\n` +
+  `/help — this list\n\n` +
+  `Verify your account from the website to unlock selling.`;
+
+const WELCOME_TEXT =
+  `👋 Welcome to <b>Digitalsale</b> — the borderless marketplace for digital goods.\n\n` + HELP_TEXT;
+
+async function handlePurchases(chatId: number, telegramId: string): Promise<void> {
+  const db = getDb();
+  const user = db
+    .prepare('SELECT id FROM users WHERE telegram_id = ?')
+    .get(telegramId) as { id: string } | undefined;
+  if (!user) {
+    await sendTelegramMessage(
+      chatId,
+      `I don't see a Digitalsale account linked to this Telegram yet.\n\nOpen the mini app or website and verify to link it.`
+    );
+    return;
+  }
+  const orders = db
+    .prepare(
+      `SELECT o.id, o.amount_usd, o.status, o.created_at, p.title
+       FROM orders o JOIN products p ON p.id = o.product_id
+       WHERE o.buyer_id = ? AND o.status = 'paid'
+       ORDER BY o.created_at DESC LIMIT 20`
+    )
+    .all(user.id) as {
+    id: string;
+    amount_usd: number;
+    status: string;
+    created_at: string;
+    title: string;
+  }[];
+  if (orders.length === 0) {
+    await sendTelegramMessage(chatId, `No purchases yet — your order history will appear here.`);
+    return;
+  }
+  const lines = orders.map(
+    (o) =>
+      `🎁 <b>${escapeHtml(o.title)}</b>\n   ${formatUsd(o.amount_usd)} · <code>${shortId(o.id)}</code> · ${timeAgo(o.created_at)}`
+  );
+  await sendTelegramMessage(
+    chatId,
+    `🧾 <b>Your purchases</b> (${orders.length})\n\n${lines.join('\n\n')}`
+  );
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 export async function POST(req: Request) {
@@ -63,32 +111,46 @@ export async function POST(req: Request) {
 
   const msg = update.message;
   const text = typeof msg?.text === 'string' ? msg.text : '';
-  const token = parseVerifyStart(text);
-  if (!token || !msg?.from || !msg?.chat) {
-    // Not a verification deep link — acknowledge, nothing to do.
-    return NextResponse.json({ ok: true });
-  }
+  if (!msg?.from || !msg?.chat || !text) return NextResponse.json({ ok: true });
+
   const telegramId = String(msg.from.id);
   const telegramUsername = msg.from.username ?? null;
   const chatId = msg.chat.id;
 
-  const db = getDb();
-  const result = consumeVerifyToken(db, token, telegramId, telegramUsername);
-
-  if (result.ok) {
-    await sendTelegramMessage(
-      chatId,
-      `✅ Your Digitalsale account is <b>verified</b>.\n\nYou can now open your store, list products and join the affiliate program. Head back to <b>${BOT_USERNAME}</b>'s mini app or the website to continue.`
-    );
-  } else {
-    const reason =
-      result.reason === 'used'
-        ? 'This verification link was already used — request a fresh one from the website.'
-        : result.reason === 'expired'
-          ? 'This verification link expired — request a fresh one from the website.'
-          : 'Unknown verification link — request a fresh one from the website.';
-    await sendTelegramMessage(chatId, `⚠️ Verification failed: ${reason}`);
+  // Verification deep link: /start v_<32-hex>
+  const verifyToken = parseVerifyStart(text);
+  if (verifyToken) {
+    const db = getDb();
+    const result = consumeVerifyToken(db, verifyToken, telegramId, telegramUsername);
+    if (result.ok) {
+      await sendTelegramMessage(
+        chatId,
+        `✅ Your Digitalsale account is <b>verified</b>.\n\nYou can now open your store, list products and join the affiliate program. Head back to <b>${BOT_USERNAME}</b>'s mini app or the website to continue.`
+      );
+    } else {
+      const reason =
+        result.reason === 'used'
+          ? 'This verification link was already used — request a fresh one from the website.'
+          : result.reason === 'expired'
+            ? 'This verification link expired — request a fresh one from the website.'
+            : 'Unknown verification link — request a fresh one from the website.';
+      await sendTelegramMessage(chatId, `⚠️ Verification failed: ${reason}`);
+    }
+    return NextResponse.json({ ok: true, verified: result.ok });
   }
 
-  return NextResponse.json({ ok: true, verified: result.ok });
+  // Plain commands.
+  const cmd = parseBotCommand(text);
+  if (!cmd) return NextResponse.json({ ok: true }); // not a command — ignore
+
+  if (cmd.command === 'start') {
+    await sendTelegramMessage(chatId, WELCOME_TEXT);
+  } else if (cmd.command === 'help') {
+    await sendTelegramMessage(chatId, HELP_TEXT);
+  } else if (cmd.command === 'purchases') {
+    await handlePurchases(chatId, telegramId);
+  } else {
+    await sendTelegramMessage(chatId, `Unknown command. Try /help.`);
+  }
+  return NextResponse.json({ ok: true });
 }

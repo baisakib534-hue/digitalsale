@@ -3,6 +3,7 @@ import { getDb } from '../../../lib/db';
 import { verifyIpn } from '../../../lib/nowpayments';
 import { issueLicenseKey } from '../../../lib/licenses';
 import { incrementDiscountUse } from '../../../lib/discounts';
+import { notifyPurchaseConfirmed } from '../../../lib/bot-notify';
 
 interface IpnBody {
   order_id?: unknown;
@@ -66,6 +67,9 @@ export async function POST(req: Request) {
             console.error('[ipn] license key issue failed:', (err as Error).message);
           }
         }
+        // v14: bot purchase-confirmation (main bot + seller's own bot when
+        // registered). Never throws; self-deletes after 1 hour.
+        await notifyPurchaseConfirmed(db, order.id);
       }
     }
     return NextResponse.json({ ok: true });
