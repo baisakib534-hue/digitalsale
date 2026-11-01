@@ -46,7 +46,18 @@ const HELP_TEXT =
   `Verify your account from the website to unlock selling.`;
 
 const WELCOME_TEXT =
-  `👋 Welcome to <b>Digitalsale</b> — the borderless marketplace for digital goods.\n\n` + HELP_TEXT;
+  `👋 Welcome to <b>Digitalsale</b>!\n\n` +
+  `The borderless marketplace for digital goods — buy from creators anywhere, pay with crypto, download instantly.\n\n` +
+  `🛍 Browse the market\n` +
+  `❤️ Save favorites to your wishlist\n` +
+  `⚡ Instant downloads after payment\n\n` +
+  `Tap below to open the app 👇`;
+
+const WELCOME_MARKUP = {
+  inline_keyboard: [
+    [{ text: '🛍 Open Digitalsale', web_app: { url: 'https://digitalsale-pi.vercel.app' } }],
+  ],
+};
 
 async function handlePurchases(chatId: number, telegramId: string): Promise<void> {
   const db = getDb();
@@ -153,7 +164,7 @@ export async function POST(req: Request) {
   }
 
   if (cmd.command === 'start') {
-    await sendTelegramMessage(chatId, WELCOME_TEXT);
+    await sendTelegramMessage(chatId, WELCOME_TEXT, WELCOME_MARKUP);
   } else if (cmd.command === 'help') {
     await sendTelegramMessage(chatId, HELP_TEXT);
   } else if (cmd.command === 'purchases') {

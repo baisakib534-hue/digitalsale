@@ -103,17 +103,23 @@ export function parseVerifyStart(text: string): string | null {
 }
 
 /** Best-effort reply via the Bot API. No-op (logged) when the token is unset. */
-export async function sendTelegramMessage(chatId: number | string, text: string): Promise<boolean> {
+export async function sendTelegramMessage(
+  chatId: number | string,
+  text: string,
+  replyMarkup?: Record<string, unknown>,
+): Promise<boolean> {
   const botToken = process.env.TELEGRAM_BOT_TOKEN || '';
   if (!botToken) {
     console.log(`[bot] (no token) would send to ${chatId}: ${text.slice(0, 120)}`);
     return false;
   }
   try {
+    const body: Record<string, unknown> = { chat_id: chatId, text, parse_mode: 'HTML' };
+    if (replyMarkup) body.reply_markup = replyMarkup;
     const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+      body: JSON.stringify(body),
     });
     return res.ok;
   } catch (err) {
