@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import type { FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import EmptyState, { BasketGlyph, SproutGlyph } from '../../components/EmptyState';
@@ -114,13 +115,14 @@ interface StoreRow {
   whitelabel_token: string | null;
 }
 
-type Tab = 'overview' | 'products' | 'orders' | 'store';
+type Tab = 'overview' | 'products' | 'orders' | 'store' | 'telegram';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'products', label: 'Products' },
   { id: 'orders', label: 'Orders' },
   { id: 'store', label: 'Store settings' },
+  { id: 'telegram', label: 'Telegram' },
 ];
 
 function fmtSize(bytes: number): string {
@@ -154,6 +156,107 @@ export default function DashboardPage() {
   const [edit, setEdit] = useState({ title: '', description: '', price: '', category: '', tags: '', videoUrl: '', status: 'draft', stockLimited: false, stockLimit: '', licenseKeys: false, affiliateEnabled: false, affiliateCommission: 20 });
   const [editFiles, setEditFiles] = useState<FileRow[]>([]);
   const [editImages, setEditImages] = useState<ImageRow[]>([]);
+
+  // telegram bot + channels
+  const [tgBot, setTgBot] = useState<{ bot_username: string; status: string } | null>(null);
+  const [tgBotLoaded, setTgBotLoaded] = useState(false);
+  const [tgToken, setTgToken] = useState('');
+  const [tgBotBusy, setTgBotBusy] = useState(false);
+  const [tgBotError, setTgBotError] = useState<string | null>(null);
+  const [tgChannels, setTgChannels] = useState<{ id: string; channel_id: string; channel_title: string; auto_post: number }[]>([]);
+  const [tgChanInput, setTgChanInput] = useState('');
+  const [tgChanBusy, setTgChanBusy] = useState(false);
+  const [tgChanError, setTgChanError] = useState<string | null>(null);
+
+  async function loadTelegram() {
+    try {
+      const br = await fetch('/api/seller/bot', { cache: 'no-store' });
+      if (br.ok) setTgBot((await br.json()).bot);
+      const cr = await fetch('/api/seller/channel', { cache: 'no-store' });
+      if (cr.ok) setTgChannels((await cr.json()).channels || []);
+    } catch { /* offline — keep empty */ }
+    setTgBotLoaded(true);
+  }
+
+  useEffect(() => {
+    if (tab === 'telegram' && !tgBotLoaded) loadTelegram();
+  }, [tab, tgBotLoaded]);
+
+  async function connectBot(e: FormEvent) {
+    e.preventDefault();
+    setTgBotBusy(true);
+    setTgBotError(null);
+    try {
+      const r = await fetch('/api/seller/bot', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: tgToken }),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        const msgs: Record<string, string> = {
+          'bad-token': 'That does not look like a bot token. Copy it from BotFather.',
+          'invalid-token': 'Telegram rejected this token. Check it and try again.',
+          'telegram-unreachable': 'Could not reach Telegram. Try again in a moment.',
+          'telegram-verification-required': 'Verify your Telegram account first.',
+        };
+        setTgBotError(msgs[j.error] || 'Could not connect the bot.');
+      } else {
+        setTgBot({ bot_username: j.username || '', status: 'active' });
+        setTgToken('');
+        setNotice(j.username ? `Connected @${j.username}.` : 'Bot connected.');
+      }
+    } catch {
+      setTgBotError('Network error. Try again.');
+    }
+    setTgBotBusy(false);
+  }
+
+  async function disconnectBot() {
+    if (!confirm('Disconnect your Telegram bot? Auto-posting will stop.')) return;
+    await fetch('/api/seller/bot', { method: 'DELETE' });
+    setTgBot(null);
+    setTgChannels([]);
+  }
+
+  async function linkChannel(e: FormEvent) {
+    e.preventDefault();
+    setTgChanBusy(true);
+    setTgChanError(null);
+    try {
+      const r = await fetch('/api/seller/channel', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ channel_id: tgChanInput }),
+      });
+      const j = await r.json();
+      if (!r.ok) {
+        const msgs: Record<string, string> = {
+          'no-bot': 'Connect your bot first.',
+          'bot-not-admin': 'Your bot must be an admin of that channel with post permission. Add it as admin, then try again.',
+          'bad-channel': 'Enter a channel username (@name) or ID.',
+          'telegram-unreachable': 'Could not reach Telegram. Try again in a moment.',
+        };
+        setTgChanError(msgs[j.error] || 'Could not link the channel.');
+      } else {
+        setTgChanInput('');
+        setTgBotLoaded(false);
+        setNotice('Channel linked. New products will auto-post there.');
+      }
+    } catch {
+      setTgChanError('Network error. Try again.');
+    }
+    setTgChanBusy(false);
+  }
+
+  async function unlinkChannel(channelId: string) {
+    await fetch('/api/seller/channel', {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ channel_id: channelId }),
+    });
+    setTgChannels((cs) => cs.filter((c) => c.channel_id !== channelId));
+  }
   const [editLicenses, setEditLicenses] = useState<LicenseRow[]>([]);
   const [editDiscounts, setEditDiscounts] = useState<DiscountRow[]>([]);
   const [dcCode, setDcCode] = useState('');
@@ -222,7 +325,7 @@ export default function DashboardPage() {
     window.setTimeout(() => setNotice(null), 4000);
   }
 
-  async function createStore(e: React.FormEvent) {
+  async function createStore(e: FormEvent) {
     e.preventDefault();
     setStoreError(null);
     if (storeName.trim().length < 2) {
@@ -256,7 +359,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function createProduct(e: React.FormEvent) {
+  async function createProduct(e: FormEvent) {
     e.preventDefault();
     setNpError(null);
     const price = Number(np.price);
@@ -377,7 +480,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function saveEdit(e: React.FormEvent) {
+  async function saveEdit(e: FormEvent) {
     e.preventDefault();
     if (!editingId) return;
     setEditError(null);
@@ -608,7 +711,7 @@ export default function DashboardPage() {
     }
   }
 
-  async function saveSettings(e: React.FormEvent) {
+  async function saveSettings(e: FormEvent) {
     e.preventDefault();
     if (!me?.storeSlug) return;
     setSettingsError(null);
@@ -1451,6 +1554,92 @@ export default function DashboardPage() {
             <p className="hint">Saved with the settings above. Shown on your public store page and white-label storefront.</p>
 
             {me?.storeSlug && <StoreProfileExtras storeSlug={me.storeSlug} />}
+          </div>
+        )}
+
+        {tab === 'telegram' && (
+          <div>
+            <div className="panel">
+              <h3>Your Telegram bot</h3>
+              <p className="hint">
+                Connect your own bot (from @BotFather) so Digitalsale can notify buyers and
+                auto-post your products to your channel. Your token is encrypted and never shown again.
+              </p>
+              {tgBot && tgBot.status === 'active' ? (
+                <div>
+                  <p>
+                    Connected: <strong>{tgBot.bot_username ? `@${tgBot.bot_username}` : 'your bot'}</strong>
+                  </p>
+                  <button type="button" className="btn btn-ghost" onClick={disconnectBot}>
+                    Disconnect bot
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={connectBot} noValidate>
+                  <div className="field">
+                    <label htmlFor="tg-token">Bot token</label>
+                    <input
+                      id="tg-token"
+                      className="input"
+                      placeholder="123456:ABC-DEF…"
+                      value={tgToken}
+                      onChange={(e) => setTgToken(e.target.value)}
+                      disabled={tgBotBusy}
+                      autoComplete="off"
+                    />
+                  </div>
+                  {tgBotError && <p className="error">{tgBotError}</p>}
+                  <button type="submit" className="btn btn-primary" disabled={tgBotBusy || !tgToken.trim()}>
+                    {tgBotBusy ? 'Connecting…' : 'Connect bot'}
+                  </button>
+                  <p className="hint">
+                    Get a token: open @BotFather in Telegram → /newbot → copy the token it gives you.
+                  </p>
+                </form>
+              )}
+            </div>
+
+            <div className="panel">
+              <h3>Linked channels</h3>
+              <p className="hint">
+                New published products auto-post to these channels through your bot.
+                Add your bot as an <strong>admin</strong> of the channel first.
+              </p>
+              {tgChannels.length > 0 && (
+                <ul className="list">
+                  {tgChannels.map((c) => (
+                    <li key={c.id} className="list-row">
+                      <span>{c.channel_title || c.channel_id}</span>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => unlinkChannel(c.channel_id)}
+                      >
+                        Unlink
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <form onSubmit={linkChannel} noValidate>
+                <div className="field">
+                  <label htmlFor="tg-channel">Channel username or ID</label>
+                  <input
+                    id="tg-channel"
+                    className="input"
+                    placeholder="@yourchannel or -1001234567890"
+                    value={tgChanInput}
+                    onChange={(e) => setTgChanInput(e.target.value)}
+                    disabled={tgChanBusy || !tgBot}
+                  />
+                </div>
+                {tgChanError && <p className="error">{tgChanError}</p>}
+                <button type="submit" className="btn btn-primary" disabled={tgChanBusy || !tgChanInput.trim() || !tgBot}>
+                  {tgChanBusy ? 'Linking…' : 'Link channel'}
+                </button>
+                {!tgBot && <p className="hint">Connect your bot above first.</p>}
+              </form>
+            </div>
           </div>
         )}
       </div>
