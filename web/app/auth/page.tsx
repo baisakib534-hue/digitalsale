@@ -184,12 +184,12 @@ export default function AuthPage() {
         <span className="eyebrow" style={{ color: 'var(--ember)' }}>
           {BRAND.name} for creators
         </span>
-        <h2 style={{ color: 'var(--paper)', fontSize: '2.5rem', marginTop: 16 }}>
+        <h2 style={{ color: 'var(--ink)', fontSize: '2.5rem', marginTop: 16 }}>
           Sell your work.
           <br />
           Actually get paid.
         </h2>
-        <p style={{ color: 'rgba(250,245,234,0.72)', maxWidth: 420 }}>
+        <p style={{ color: 'var(--body)', maxWidth: 420 }}>
           A {BRAND.feePercent}% flat fee, payouts in {BRAND.payoutAsset} to anywhere in the world, and instant delivery
           for your buyers. Open your store inside Telegram or right here on the web.
         </p>
@@ -203,7 +203,7 @@ export default function AuthPage() {
               <span className="auth-check" style={{ display: 'inline-flex', marginTop: 3 }}>
                 <IconCheck size={18} />
               </span>
-              <span style={{ color: 'rgba(250,245,234,0.85)', fontSize: 15 }}>{t}</span>
+              <span style={{ color: 'var(--body)', fontSize: 15 }}>{t}</span>
             </li>
           ))}
         </ul>

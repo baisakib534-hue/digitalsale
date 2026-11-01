@@ -90,7 +90,7 @@ export default function StorePage({ params }: { params: { slug: string } }) {
               <SocialRow socials={socials} dark />
             </div>
             <p style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span className="chip" style={{ background: 'rgba(250,245,234,0.14)', color: 'var(--paper)' }}>
+              <span className="chip" style={{ background: 'var(--paper-2)', color: 'var(--body)' }}>
                 {products.length} {products.length === 1 ? 'product' : 'products'}
               </span>
               {suspendedStore ? (

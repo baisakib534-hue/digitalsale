@@ -740,13 +740,13 @@ export default function DashboardPage() {
             <Link href={`/store/${me.storeSlug}`}>View my store</Link>
           )}
         </nav>
-        <div style={{ marginTop: 32, padding: '0 16px', fontSize: 13, color: 'rgba(250,245,234,0.6)' }}>
-          <div style={{ fontWeight: 700, color: 'var(--paper)' }}>{me?.name}</div>
+        <div style={{ marginTop: 32, padding: '0 16px', fontSize: 13, color: 'var(--muted)' }}>
+          <div style={{ fontWeight: 700, color: 'var(--ink)' }}>{me?.name}</div>
           <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{me?.email ?? 'Telegram account'}</div>
           <button
             type="button"
             onClick={logout}
-            style={{ background: 'none', border: 'none', padding: '8px 0 0', color: 'rgba(250,245,234,0.75)', cursor: 'pointer', fontSize: 13 }}
+            style={{ background: 'none', border: 'none', padding: '8px 0 0', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}
           >
             Log out
           </button>
