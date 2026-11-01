@@ -56,7 +56,7 @@ describe('report system (db)', () => {
   });
 
   it('exposes the expected reason enum', () => {
-    assert.deepEqual([...REPORT_REASONS], ['scam', 'malware', 'fake', 'copyright', 'prohibited', 'other']);
+    assert.deepEqual([...REPORT_REASONS], ['scam', 'malware', 'fake', 'copyright', 'prohibited', 'illegal', 'other']);
     assert.equal(AUTO_SUSPEND_THRESHOLD, 3);
   });
 

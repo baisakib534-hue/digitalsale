@@ -98,6 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div>
                 <h4>Project</h4>
                 <a href="/how-it-works">How it works</a>
+                <a href="/terms">Terms of Service</a>
                 <a href={`mailto:${BRAND.supportEmail}`}>Contact</a>
                 <a href="/market?sort=newest">New arrivals</a>
               </div>

@@ -92,6 +92,12 @@ export default function ProductPage({ params }: { params: { id: string } }) {
   const badges = getBadges(db).get(row.id) ?? [];
   // v11: reviews + wishlist state.
   const rating = productRating(db, row.id);
+  // v13.2: public sales count (paid orders only).
+  const soldTotal = (
+    db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE product_id = ? AND status = 'paid'`).get(row.id) as {
+      c: number;
+    }
+  ).c;
   const reviews = db
     .prepare(
       `SELECT id, rating, body, created_at FROM reviews
@@ -162,6 +168,11 @@ export default function ProductPage({ params }: { params: { id: string } }) {
           )}
           <p style={{ color: 'var(--muted)', fontSize: 14 }}>
             Listed {timeAgo(row.created_at)}
+            {soldTotal > 0 && (
+              <>
+                {' '}· <strong style={{ color: 'var(--ink)' }}>{soldTotal}</strong> sold
+              </>
+            )}
             {fileCount > 0 && (
               <>
                 {' '}· {fileCount} {fileCount === 1 ? 'file' : 'files'} included · instant download

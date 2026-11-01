@@ -22,3 +22,33 @@ export function isAdmin(db: Database.Database, userId: string): boolean {
   if (!canonical) return false;
   return adminEmails().includes(canonical);
 }
+
+/**
+ * v13.2: permanently ban a user for illegal activity. The ban is forever —
+ * banned users cannot log in, list, or buy, and all their products are
+ * suspended. There is no automatic un-ban; only a manual DB change reverses it.
+ */
+export function banUser(db: Database.Database, userId: string, reason: string): boolean {
+  const user = db.prepare('SELECT id, status FROM users WHERE id = ?').get(userId) as
+    | { id: string; status: string }
+    | undefined;
+  if (!user || user.status === 'banned') return false;
+  db.prepare(
+    `UPDATE users SET status = 'banned', banned_at = datetime('now'), ban_reason = ? WHERE id = ?`
+  ).run(reason, userId);
+  // Suspend every product in every store they own.
+  db.prepare(
+    `UPDATE products SET status = 'suspended'
+     WHERE store_id IN (SELECT id FROM stores WHERE user_id = ?)
+       AND status = 'published'`
+  ).run(userId);
+  return true;
+}
+
+/** True when the user is permanently banned (login + actions blocked). */
+export function isBanned(db: Database.Database, userId: string): boolean {
+  const row = db.prepare('SELECT status FROM users WHERE id = ?').get(userId) as
+    | { status: string }
+    | undefined;
+  return row?.status === 'banned';
+}

@@ -32,6 +32,11 @@ export default function SellPage() {
               Open a store in minutes, list digital products, and keep {100 - BRAND.feePercent}% of
               every sale — paid out in {BRAND.payoutAsset}, anywhere on earth.
             </p>
+            <p className="fineprint" style={{ maxWidth: 560 }}>
+              <strong>Legal goods only.</strong> Pirated, stolen, malware, or otherwise illegal
+              content means a <strong>permanent ban</strong> — no warnings. See our{' '}
+              <Link href="/terms">Terms of Service</Link>.
+            </p>
             <div className="hero-ctas">
               <Link href="/auth?mode=signup" className="btn btn-primary btn-lg">
                 Open your store — it&apos;s free

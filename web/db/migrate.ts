@@ -228,4 +228,11 @@ export function runMigrations(db: Database.Database): void {
   db.exec(
     'CREATE UNIQUE INDEX IF NOT EXISTS idx_stores_custom_slug ON stores(custom_slug) WHERE custom_slug IS NOT NULL'
   );
+
+  // 19. v13.2: permanent bans — users.banned_at + ban_reason (status='banned').
+  const userColsV132 = new Set(
+    db.prepare(`PRAGMA table_info(users)`).all().map((r) => (r as { name: string }).name)
+  );
+  if (!userColsV132.has('banned_at')) db.exec('ALTER TABLE users ADD COLUMN banned_at TEXT');
+  if (!userColsV132.has('ban_reason')) db.exec('ALTER TABLE users ADD COLUMN ban_reason TEXT');
 }

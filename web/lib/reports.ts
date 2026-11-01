@@ -6,7 +6,7 @@ import type Database from 'better-sqlite3';
  * because the test build excludes app/.
  */
 
-export const REPORT_REASONS = ['scam', 'malware', 'fake', 'copyright', 'prohibited', 'other'] as const;
+export const REPORT_REASONS = ['scam', 'malware', 'fake', 'copyright', 'prohibited', 'illegal', 'other'] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number];
 
 /** Auto-suspend threshold: distinct reporters before a product is paused. */

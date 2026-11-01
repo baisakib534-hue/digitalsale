@@ -16,6 +16,7 @@ interface UserRow {
   name: string;
   password_hash: string | null;
   telegram_verified: number;
+  status: string;
 }
 
 export async function POST(req: Request) {
@@ -34,13 +35,18 @@ export async function POST(req: Request) {
   const db = getDb();
   const user = db
     .prepare(
-      `SELECT id, email, name, password_hash, telegram_verified FROM users
+      `SELECT id, email, name, password_hash, telegram_verified, status FROM users
        WHERE email_canonical = ? OR email = ?`
     )
     .get(norm.canonical, norm.display) as UserRow | undefined;
 
   if (!user || !user.password_hash || !verifyPassword(password, user.password_hash)) {
     return NextResponse.json({ error: 'invalid-credentials' }, { status: 401 });
+  }
+
+  // v13.2: permanently banned users can never log back in.
+  if (user.status === 'banned') {
+    return NextResponse.json({ error: 'account-banned' }, { status: 403 });
   }
 
   const res = NextResponse.json({

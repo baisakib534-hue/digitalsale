@@ -159,6 +159,10 @@ export default function CheckoutPage({ params }: { params: { orderId: string } }
               {formatUsd(order.amount_usd)}
             </div>
             <PayPanel orderId={order.id} amountCents={order.amount_usd} />
+            <p className="fineprint" style={{ marginTop: 16, textAlign: 'center' }}>
+              By paying you agree to our <Link href="/terms">Terms of Service</Link> — all
+              crypto sales are final.
+            </p>
           </div>
         </div>
       </div>

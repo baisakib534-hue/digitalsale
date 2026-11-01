@@ -10,6 +10,7 @@ const REASONS = [
   { value: 'fake', label: 'Fake — not what it claims to be' },
   { value: 'copyright', label: 'Copyright — uses someone else\u2019s work' },
   { value: 'prohibited', label: 'Prohibited content' },
+  { value: 'illegal', label: 'Illegal — against the law (permanent ban)' },
   { value: 'other', label: 'Something else' },
 ] as const;
 
