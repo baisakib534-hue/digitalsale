@@ -85,7 +85,6 @@ export default function ProductPage({ params }: { params: { id: string } }) {
     .filter(Boolean)
     .slice(0, 8);
 
-  const fee = Math.round((row.price_usd * BRAND.feePercent) / 100);
   const underReview = row.status === 'suspended';
   // v7: seller-set buyer cap + Amazon-style badges.
   const stock = stockInfo(db, row);
@@ -317,20 +316,6 @@ export default function ProductPage({ params }: { params: { id: string } }) {
                 }}
               >
                 {formatUsd(row.price_usd)}
-              </div>
-              <div className="buy-rows">
-                <div className="row">
-                  <span>You pay</span>
-                  <strong>{formatUsd(row.price_usd)}</strong>
-                </div>
-                <div className="row">
-                  <span>Seller receives</span>
-                  <strong>{formatUsd(row.price_usd - fee)}</strong>
-                </div>
-                <div className="row">
-                  <span>Platform fee ({BRAND.feePercent}%)</span>
-                  <span>{formatUsd(fee)}</span>
-                </div>
               </div>
               <BuyPanel productId={row.id} priceCents={row.price_usd} />
               {stock.stockLimit !== null && (

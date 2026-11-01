@@ -64,10 +64,6 @@ function Summary({ order }: { order: OrderPageRow }) {
           <strong>{formatUsd(order.amount_usd)}</strong>
         </div>
       </div>
-      <p style={{ fontSize: 13.5, color: 'var(--muted)', margin: '16px 0 0' }}>
-        The seller keeps {formatUsd(order.seller_usd)} (90%); Digitalsale&apos;s flat fee is{' '}
-        {formatUsd(order.fee_usd)}.
-      </p>
     </div>
   );
 }
