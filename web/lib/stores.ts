@@ -135,7 +135,11 @@ export function revokeStoreApiToken(db: Database.Database, storeId: string, id: 
 
 /**
  * Bot stage: queue a channel post when a product is published and the store
- * has auto-post channels linked. The bot worker drains the queue.
+ * has auto-post channels linked.
+ *
+ * IMPORTANT: posts go out through the SELLER'S OWN bot (seller_bots.bot_token_enc),
+ * never through @Digitalsale_bot. Our bot only registers seller bots and handles
+ * commands; the queue worker posts to each seller's channel with that seller's token.
  */
 export function queueChannelPost(
   db: Database.Database,
