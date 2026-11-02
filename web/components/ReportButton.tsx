@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { haptic } from '../lib/telegram-client';
-import { IconFlag } from './doodles';
 
 const REASONS = [
   { value: 'scam', label: 'Scam — this looks fraudulent' },
@@ -13,6 +12,13 @@ const REASONS = [
   { value: 'illegal', label: 'Illegal — against the law (permanent ban)' },
   { value: 'other', label: 'Something else' },
 ] as const;
+
+const FlagSvg = (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M5 21V4" />
+    <path d="M5 4h13l-3 4 3 4H5" />
+  </svg>
+);
 
 /** Report button + modal (v4). Login required; one open report per user per target. */
 export default function ReportButton({
@@ -74,7 +80,7 @@ export default function ReportButton({
         }}
       >
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-          <IconFlag size={15} />
+          {FlagSvg}
           Report
         </span>
       </button>

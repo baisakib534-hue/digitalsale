@@ -9,7 +9,6 @@ import RefCapture from '../../../components/RefCapture';
 import ReportButton from '../../../components/ReportButton';
 import SafetySection from '../../../components/SafetySection';
 import Reveal from '../../../components/Reveal';
-import { Stamp, IconShield, IconUsers } from '../../../components/doodles';
 import { stockInfo } from '../../../lib/stock';
 import { getBadges, BADGE_LABEL } from '../../../lib/badges';
 import { productRating } from '../../../lib/reviews';
@@ -64,7 +63,6 @@ export default function ProductPage({ params }: { params: { id: string } }) {
 
   if (!row || (row.status !== 'published' && row.status !== 'suspended')) notFound();
 
-  // v6: seller-uploaded gallery pictures.
   const gallery = db
     .prepare('SELECT id, filename FROM product_images WHERE product_id = ? ORDER BY position, created_at')
     .all(row.id) as { id: string; filename: string }[];
@@ -86,24 +84,23 @@ export default function ProductPage({ params }: { params: { id: string } }) {
     .slice(0, 8);
 
   const underReview = row.status === 'suspended';
-  // v7: seller-set buyer cap + Amazon-style badges.
   const stock = stockInfo(db, row);
   const soldOut = stock.soldOut && !underReview;
   const badges = getBadges(db).get(row.id) ?? [];
-  // v11: reviews + wishlist state.
   const rating = productRating(db, row.id);
-  // v13.2: public sales count (paid orders only).
   const soldTotal = (
     db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE product_id = ? AND status = 'paid'`).get(row.id) as {
       c: number;
     }
   ).c;
+
   const reviews = db
     .prepare(
       `SELECT id, rating, body, created_at FROM reviews
        WHERE product_id = ? ORDER BY created_at DESC LIMIT 20`
     )
     .all(row.id) as { id: string; rating: number; body: string; created_at: string }[];
+
   let wishlisted = false;
   try {
     const uid = currentUserIdFromCookies();
@@ -111,6 +108,21 @@ export default function ProductPage({ params }: { params: { id: string } }) {
   } catch {
     /* cookies unavailable */
   }
+
+  const ShieldSvg = (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+
+  const UsersSvg = (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5" />
+      <path d="M16 4.6a3.5 3.5 0 010 6.8M17.5 14.9c2 .7 3.4 2.5 4 5.1" />
+    </svg>
+  );
 
   return (
     <div className="wrap" style={{ paddingTop: 56, paddingBottom: 88 }}>
@@ -126,30 +138,29 @@ export default function ProductPage({ params }: { params: { id: string } }) {
           <div className="cat-row">
             <span className="chip">{row.category}</span>
             {badges.map((b) => (
-              <span key={b} className={`badge-pill badge-${b === 'best-seller' ? 'ember' : b === 'trending' ? 'gold' : 'mint'}`}>
+              <span
+                key={b}
+                className={`badge-pill badge-${b === 'best-seller' ? 'ember' : b === 'trending' ? 'gold' : 'mint'}`}
+              >
                 {BADGE_LABEL[b]}
               </span>
             ))}
             {soldOut && (
-              <span className="badge-pill" style={{ background: 'var(--muted)', color: 'var(--night)' }}>
+              <span className="badge-pill" style={{ background: 'var(--muted)', color: 'var(--ink)' }}>
                 Sold out
               </span>
             )}
             {row.affiliate_enabled === 1 && !underReview && (
-              <Stamp tone="moss" rotate={false}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <IconUsers size={14} />
-                  {row.affiliate_commission}% affiliate program
-                </span>
-              </Stamp>
+              <span className="badge-pill badge-moss" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {UsersSvg}
+                {row.affiliate_commission}% affiliate program
+              </span>
             )}
             {!underReview && fileCount > 0 && (
-              <Stamp tone="ember" rotate={false}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <IconShield size={14} />
-                  Scanned clean
-                </span>
-              </Stamp>
+              <span className="badge-pill badge-ember" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                {ShieldSvg}
+                Scanned clean
+              </span>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginTop: 16 }}>
@@ -225,7 +236,13 @@ export default function ProductPage({ params }: { params: { id: string } }) {
                 {reviews.map((r) => (
                   <div key={r.id} style={{ borderTop: '1px solid var(--line)', paddingTop: 14 }}>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
-                      <span style={{ color: 'var(--gold, #d97706)', letterSpacing: 2 }} aria-label={`${r.rating} out of 5 stars`}>
+                      <span
+                        style={{
+                          color: 'var(--gold, #d97706)',
+                          letterSpacing: 2,
+                        }}
+                        aria-label={`${r.rating} out of 5 stars`}
+                      >
                         {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
                       </span>
                       <span className="chip">Verified buyer</span>
