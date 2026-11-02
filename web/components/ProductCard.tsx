@@ -6,7 +6,7 @@ import WishlistButton from './WishlistButton';
 export interface CardProduct {
   id: string;
   title: string;
-  price_usd: number; // cents
+  price_usd: number;
   category: string;
   cover_url: string | null;
   store_name: string;
@@ -27,7 +27,6 @@ export default function ProductCard({ product, badges = [] }: { product: CardPro
     <article className="product-card">
       <Link href={`/product/${product.id}`} className="cover" aria-label={product.title}>
         {product.cover_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={product.cover_url} alt={product.title} loading="lazy" />
         ) : (
           <div style={{ width: '100%', height: '100%', background: 'var(--paper-2)' }} />
@@ -50,6 +49,9 @@ export default function ProductCard({ product, badges = [] }: { product: CardPro
             ))}
           </div>
         )}
+        {product.cover_url && (
+          <span className="has-video-badge" aria-hidden>Video</span>
+        )}
       </Link>
       <div className="body">
         <span className="cat">{product.category}</span>
@@ -63,7 +65,14 @@ export default function ProductCard({ product, badges = [] }: { product: CardPro
           <span className="price">{formatUsd(product.price_usd)}</span>
           <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
             {product.rating_count ? (
-              <span style={{ fontSize: 13, color: 'var(--muted)', whiteSpace: 'nowrap' }} title={`${product.rating_count} review${product.rating_count === 1 ? '' : 's'}`}>
+              <span
+                style={{
+                  fontSize: 13,
+                  color: 'var(--muted)',
+                  whiteSpace: 'nowrap',
+                }}
+                title={`${product.rating_count} review${product.rating_count === 1 ? '' : 's'}`}
+              >
                 ★ {product.rating_avg?.toFixed(1)} ({product.rating_count})
               </span>
             ) : null}

@@ -94,8 +94,8 @@ export default function SiteHeader() {
         <div className="header-actions">
           {me?.hasStore && <span className="fee-note">10% flat fee — keep 90%</span>}
           <ThemeToggle />
-          {loaded &&
-            (me ? (
+          {loaded && (
+            me ? (
               <>
                 <Link
                   href={me.hasStore ? '/dashboard' : '/dashboard'}
@@ -130,7 +130,8 @@ export default function SiteHeader() {
                   Sign up
                 </Link>
               </>
-            ))}
+            )
+          )}
         </div>
         <button
           className="menu-btn"
@@ -161,8 +162,8 @@ export default function SiteHeader() {
             </Link>
           ))}
           <div className="mobile-menu-actions">
-            {loaded &&
-              (me ? (
+            {loaded && (
+              me ? (
                 <Link href="/dashboard" className="btn btn-dark" onClick={() => haptic('tap')}>
                   {me.hasStore ? 'Seller dashboard' : 'Start selling'}
                 </Link>
@@ -175,7 +176,8 @@ export default function SiteHeader() {
                     Sign up
                   </Link>
                 </>
-              ))}
+              )
+            )}
             <span className="fee-note">10% flat fee — keep 90%</span>
           </div>
         </nav>
