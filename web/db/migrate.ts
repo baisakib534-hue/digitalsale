@@ -261,4 +261,11 @@ export function runMigrations(db: Database.Database): void {
   );
   if (!prodSigCols.has('signature'))
     db.exec("ALTER TABLE products ADD COLUMN signature TEXT NOT NULL DEFAULT ''");
+
+  // 22. v14.13: channel post kind — 'new' (just published) vs 'milestone' (best-seller).
+  const queueCols = new Set(
+    db.prepare(`PRAGMA table_info(channel_post_queue)`).all().map((r) => (r as { name: string }).name)
+  );
+  if (!queueCols.has('kind'))
+    db.exec("ALTER TABLE channel_post_queue ADD COLUMN kind TEXT NOT NULL DEFAULT 'new'");
 }

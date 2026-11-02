@@ -4,6 +4,7 @@ import { verifyIpn } from '../../../lib/nowpayments';
 import { issueLicenseKey } from '../../../lib/licenses';
 import { incrementDiscountUse } from '../../../lib/discounts';
 import { notifyPurchaseConfirmed, cleanupExpiredNotifications } from '../../../lib/bot-notify';
+import { checkMilestone } from '../../../lib/stores';
 
 interface IpnBody {
   order_id?: unknown;
@@ -43,6 +44,15 @@ export async function POST(req: Request) {
         // Affiliate stats derive from paid orders carrying affiliate_code —
         // nothing extra to write here.
         db.prepare("UPDATE orders SET status = 'paid' WHERE id = ?").run(order.id);
+        // v14.13: best-seller milestone → seller's own channel auto-post.
+        try {
+          const prod = db
+            .prepare('SELECT store_id FROM products WHERE id = ?')
+            .get(order.product_id) as { store_id: string } | undefined;
+          if (prod) checkMilestone(db, prod.store_id, order.product_id);
+        } catch {
+          /* milestone is best-effort */
+        }
         // v11: count the discount code use.
         if (order.discount_code) {
           const dc = db

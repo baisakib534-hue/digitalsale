@@ -281,19 +281,39 @@ export function revokeStoreApiToken(db: Database.Database, storeId: string, id: 
 export function queueChannelPost(
   db: Database.Database,
   storeId: string,
-  productId: string
+  productId: string,
+  kind: 'new' | 'milestone' = 'new'
 ): boolean {
   const channels = db
     .prepare('SELECT id FROM store_channels WHERE store_id = ? AND auto_post = 1')
     .all(storeId) as { id: string }[];
   if (channels.length === 0) return false;
   const existing = db
-    .prepare("SELECT id FROM channel_post_queue WHERE product_id = ? AND status = 'pending'")
-    .get(productId);
+    .prepare("SELECT id FROM channel_post_queue WHERE product_id = ? AND kind = ? AND status = 'pending'")
+    .get(productId, kind);
   if (existing) return true;
   db.prepare(
-    `INSERT INTO channel_post_queue (id, store_id, product_id, status, created_at)
-     VALUES (?, ?, ?, 'pending', datetime('now'))`
-  ).run(randomId(), storeId, productId);
+    `INSERT INTO channel_post_queue (id, store_id, product_id, kind, status, created_at)
+     VALUES (?, ?, ?, ?, 'pending', datetime('now'))`
+  ).run(randomId(), storeId, productId, kind);
   return true;
+}
+
+/**
+ * Best-seller milestone: call after an order is marked paid. When the
+ * product's paid-order count hits 10 / 25 / 50 / 100 / 250 / 500 / 1000,
+ * queue a 'milestone' celebration post (seller's own bot, own channels).
+ */
+export function checkMilestone(
+  db: Database.Database,
+  storeId: string,
+  productId: string
+): number | null {
+  const MILESTONES = [10, 25, 50, 100, 250, 500, 1000];
+  const row = db
+    .prepare(`SELECT COUNT(*) AS n FROM orders WHERE product_id = ? AND status = 'paid'`)
+    .get(productId) as { n: number };
+  if (!MILESTONES.includes(row.n)) return null;
+  queueChannelPost(db, storeId, productId, 'milestone');
+  return row.n;
 }
