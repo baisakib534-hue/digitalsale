@@ -9,7 +9,6 @@ import EmptyState, { SearchGlyph } from '../../components/EmptyState';
 import RefCapture from '../../components/RefCapture';
 import { enrichCards } from '../../lib/cards';
 import Reveal, { RevealGroup, RevealItem } from '../../components/Reveal';
-import { Stamp } from '../../components/doodles';
 
 export const dynamic = 'force-dynamic';
 
@@ -69,13 +68,11 @@ export default function MarketPage({ searchParams }: { searchParams: MarketSearc
         : ' ORDER BY p.created_at DESC';
 
   const rows = db.prepare(sql).all(...params) as CardRow[];
-  // v7: sold-out products are unlisted from the market grid.
   const products: CardProduct[] = enrichCards(db, rows.filter((r) => !stockInfo(db, r).soldOut));
 
   const badges = getBadges(db);
   const badgeOf = (id: string): Badge[] => badges.get(id) ?? [];
 
-  // Amazon-style sections (only on the unfiltered market view).
   const trending = filtering ? [] : enrichCards(db, fetchCards(db, trendingIds(db)));
   const bestSellers = filtering ? [] : enrichCards(db, fetchCards(db, bestSellerIds(db)));
 
@@ -92,7 +89,9 @@ export default function MarketPage({ searchParams }: { searchParams: MarketSearc
               and UI kits. Every seller keeps 90% of every sale.
             </p>
             <div style={{ marginTop: 24 }}>
-              <Stamp tone="ember">Every file scanned</Stamp>
+              <span className="badge-pill badge-ember" style={{ fontSize: 13, padding: '8px 14px' }}>
+                Every file malware-scanned before it can be sold
+              </span>
             </div>
           </Reveal>
         </div>
@@ -104,9 +103,11 @@ export default function MarketPage({ searchParams }: { searchParams: MarketSearc
 
         {!filtering && trending.length > 0 && (
           <section style={{ margin: '8px 0 44px' }}>
-            <h2 style={{ fontSize: 24, margin: '0 0 18px' }}>
-              Trending <span className="glow">now</span>
-            </h2>
+            <Reveal>
+              <h2 style={{ fontSize: 24, margin: '0 0 18px' }}>
+                Trending <span className="glow">now</span>
+              </h2>
+            </Reveal>
             <RevealGroup className="product-grid">
               {trending.map((p) => (
                 <RevealItem key={p.id}>
@@ -119,9 +120,11 @@ export default function MarketPage({ searchParams }: { searchParams: MarketSearc
 
         {!filtering && bestSellers.length > 0 && (
           <section style={{ margin: '8px 0 44px' }}>
-            <h2 style={{ fontSize: 24, margin: '0 0 18px' }}>
-              Best <span className="glow">sellers</span>
-            </h2>
+            <Reveal>
+              <h2 style={{ fontSize: 24, margin: '0 0 18px' }}>
+                Best <span className="glow">sellers</span>
+              </h2>
+            </Reveal>
             <RevealGroup className="product-grid">
               {bestSellers.map((p) => (
                 <RevealItem key={p.id}>
@@ -145,19 +148,21 @@ export default function MarketPage({ searchParams }: { searchParams: MarketSearc
           />
         ) : (
           <>
-            <p style={{ color: 'var(--muted)', fontSize: 14, margin: '0 0 20px' }}>
-              {products.length} {products.length === 1 ? 'product' : 'products'}
-              {q && (
-                <>
-                  {' '}matching <strong>“{q}”</strong>
-                </>
-              )}
-              {category && (
-                <>
-                  {' '}in <strong>{category}</strong>
-                </>
-              )}
-            </p>
+            <Reveal>
+              <p style={{ color: 'var(--muted)', fontSize: 14, margin: '0 0 20px' }}>
+                {products.length} {products.length === 1 ? 'product' : 'products'}
+                {q && (
+                  <>
+                    {' '}matching <strong>“{q}”</strong>
+                  </>
+                )}
+                {category && (
+                  <>
+                    {' '}in <strong>{category}</strong>
+                  </>
+                )}
+              </p>
+            </Reveal>
             <RevealGroup className="product-grid">
               {products.map((p) => (
                 <RevealItem key={p.id}>

@@ -14,13 +14,19 @@ interface Me {
   hasStore: boolean;
 }
 
+interface AuthLink {
+  href: string;
+  label: string;
+  variant: 'primary' | 'outline';
+}
+
 export function BrandMark() {
   return (
-    <span className="brand-mark" aria-hidden style={{ background: 'none', padding: 0 }}>
-      <svg width="34" height="34" viewBox="0 0 64 64" fill="none">
-        <rect width="64" height="64" rx="14" fill="#1C1917" />
-        <path d="M18 18h20l12 12v20H18z" fill="#EA580C" />
-        <circle cx="40.25" cy="29" r="3" fill="#1C1917" />
+    <span className="brand-mark" aria-hidden>
+      <svg width="28" height="28" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="64" height="64" rx="14" fill="currentColor" />
+        <path d="M18 18h20l12 12v20H18z" fill="currentColor" style={{ opacity: 0.18 }} />
+        <circle cx="40.25" cy="29" r="3" fill="currentColor" style={{ opacity: 0.18 }} />
       </svg>
     </span>
   );
@@ -48,91 +54,73 @@ export default function SiteHeader() {
 
   const isActive = (p: string) => (p === '/' ? pathname === '/' : pathname.startsWith(p));
 
-  const links = [
+  const navLinks: Array<{ href: string; label: string }> = [
     { href: '/market', label: 'Marketplace' },
     { href: '/affiliates', label: 'Affiliates' },
     { href: '/how-it-works', label: 'How it works' },
     { href: '/fees', label: 'Fees' },
     { href: '/sell', label: 'Sell' },
-    ...(me ? [{ href: '/wishlist', label: 'Wishlist' }] : []),
   ];
 
+  const authLinks: AuthLink[] = me
+    ? [
+        ...(me.hasStore
+          ? [{ href: '/dashboard', label: 'Seller dashboard', variant: 'primary' as const }]
+          : [{ href: '/sell', label: 'Start selling', variant: 'primary' as const }]),
+        { href: '/wishlist', label: 'Wishlist', variant: 'primary' as const },
+        { href: '/history', label: 'History', variant: 'primary' as const },
+      ]
+    : [
+        { href: '/auth', label: 'Log in', variant: 'outline' },
+        { href: '/auth?mode=signup', label: 'Sign up', variant: 'primary' },
+      ];
+
   return (
-    <header className="site-header">
+    <header className="site-header" role="banner">
       <div className="wrap">
         <Link href="/" className="brand" onClick={() => haptic('tap')}>
           <BrandMark />
           {BRAND.name}
         </Link>
-        <nav className="nav-links" aria-label="Primary">
-          <Link href="/market" className={isActive('/market') ? 'active' : ''}>
-            Marketplace
-          </Link>
-          <Link href="/affiliates" className={isActive('/affiliates') ? 'active' : ''}>
-            Affiliates
-          </Link>
-          <Link href="/how-it-works" className={isActive('/how-it-works') ? 'active' : ''}>
-            How it works
-          </Link>
-          <Link href="/fees" className={isActive('/fees') ? 'active' : ''}>
-            Fees
-          </Link>
-          <Link href="/sell" className={isActive('/sell') ? 'active' : ''}>
-            Sell
-          </Link>
-          {me && (
-            <Link href="/wishlist" className={isActive('/wishlist') ? 'active' : ''}>
-              Wishlist
+
+        <nav className="nav-links" aria-label="Primary navigation">
+          {navLinks.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={isActive(l.href) ? 'active' : ''}
+              onClick={() => haptic('tap')}
+            >
+              {l.label}
             </Link>
-          )}
-          {me && (
-            <Link href="/history" className={isActive('/history') ? 'active' : ''}>
-              History
-            </Link>
-          )}
+          ))}
         </nav>
+
         <div className="header-actions">
           {me?.hasStore && <span className="fee-note">10% flat fee — keep 90%</span>}
           <ThemeToggle />
+
           {loaded && (
-            me ? (
-              <>
+            <>
+              {authLinks.map((l, i) => (
                 <Link
-                  href={me.hasStore ? '/dashboard' : '/dashboard'}
-                  className="btn btn-dark btn-sm"
+                  key={`${l.href}-${i}`}
+                  href={l.href}
+                  className={`btn btn-${l.variant} btn-sm${l.variant === 'outline' ? ' hide-mobile' : ''}`}
                   onClick={() => haptic('tap')}
                 >
-                  {me.hasStore ? 'Seller dashboard' : 'Start selling'}
+                  {l.label}
                 </Link>
-                <span
-                  title={me.email || me.name}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    background: 'var(--moss)',
-                    color: 'var(--paper)',
-                    display: 'grid',
-                    placeItems: 'center',
-                    fontWeight: 700,
-                    fontSize: 15,
-                  }}
-                >
+              ))}
+              {me && (
+                <span title={me.email || me.name} className="avatar">
                   {(me.name || 'M').charAt(0).toUpperCase()}
                 </span>
-              </>
-            ) : (
-              <>
-                <Link href="/auth" className="btn btn-outline btn-sm hide-mobile" onClick={() => haptic('tap')}>
-                  Log in
-                </Link>
-                <Link href="/auth?mode=signup" className="btn btn-primary btn-sm" onClick={() => haptic('tap')}>
-                  Sign up
-                </Link>
-              </>
-            )
+              )}
+            </>
           )}
         </div>
+
         <button
           className="menu-btn"
           aria-label={menuOpen ? 'Close menu' : 'Open menu'}
@@ -149,36 +137,36 @@ export default function SiteHeader() {
           </span>
         </button>
       </div>
+
       {menuOpen && (
-        <nav className="mobile-menu" aria-label="Mobile">
-          {links.map((l) => (
+        <nav className="mobile-menu" aria-label="Mobile navigation">
+          {navLinks.map((l) => (
             <Link
               key={l.href}
               href={l.href}
               className={isActive(l.href) ? 'active' : ''}
-              onClick={() => haptic('tap')}
+              onClick={() => {
+                haptic('tap');
+                setMenuOpen(false);
+              }}
             >
               {l.label}
             </Link>
           ))}
           <div className="mobile-menu-actions">
-            {loaded && (
-              me ? (
-                <Link href="/dashboard" className="btn btn-dark" onClick={() => haptic('tap')}>
-                  {me.hasStore ? 'Seller dashboard' : 'Start selling'}
-                </Link>
-              ) : (
-                <>
-                  <Link href="/auth" className="btn btn-outline" onClick={() => haptic('tap')}>
-                    Log in
-                  </Link>
-                  <Link href="/auth?mode=signup" className="btn btn-primary" onClick={() => haptic('tap')}>
-                    Sign up
-                  </Link>
-                </>
-              )
-            )}
-            <span className="fee-note">10% flat fee — keep 90%</span>
+            {loaded && authLinks.map((l, i) => (
+              <Link
+                key={`${l.href}-mobile-${i}`}
+                href={l.href}
+                className={`btn btn-${l.variant}`}
+                onClick={() => {
+                  haptic('tap');
+                  setMenuOpen(false);
+                }}
+              >
+                {l.label}
+              </Link>
+            ))}
           </div>
         </nav>
       )}
