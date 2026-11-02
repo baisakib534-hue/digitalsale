@@ -7,6 +7,7 @@ import {
   sendTelegramMessage,
 } from '../../../../lib/verify';
 import { parseBotCommand, cleanupExpiredNotifications } from '../../../../lib/bot-notify';
+import { setupSellerBot } from '../../../../lib/seller-bot-setup';
 import { formatUsd, shortId, timeAgo } from '../../../../lib/format';
 import { BRAND } from '../../../../lib/brand';
 
@@ -43,6 +44,7 @@ interface TgUpdate {
 const HELP_TEXT =
   `🛍 <b>Digitalsale bot commands</b>\n\n` +
   `/purchases — your order history\n` +
+  `/setupbot — configure your own seller bot (commands + Open Shop button)\n` +
   `/help — this list\n\n` +
   `Verify your account from the website to unlock selling.`;
 
@@ -98,6 +100,72 @@ async function handlePurchases(chatId: number, telegramId: string): Promise<void
     chatId,
     `🧾 <b>Your purchases</b> (${orders.length})\n\n${lines.join('\n\n')}`
   );
+}
+
+/**
+ * /setupbot — configure the seller's OWN connected bot via the Bot API.
+ * Looks up the sender's store + connected seller_bots row, then sets the
+ * bot's commands, descriptions and menu button ("Open Shop" -> storefront).
+ */
+async function handleSetupBot(chatId: number, telegramId: string): Promise<void> {
+  const db = getDb();
+  const user = db
+    .prepare('SELECT id FROM users WHERE telegram_id = ?')
+    .get(telegramId) as { id: string } | undefined;
+  if (!user) {
+    await sendTelegramMessage(
+      chatId,
+      `I don't see a Digitalsale account linked to this Telegram yet.\n\nOpen the mini app or website and verify to link it first.`
+    );
+    return;
+  }
+  const store = db
+    .prepare(
+      `SELECT id, name, slug, bio, whitelabel_token FROM stores WHERE user_id = ? AND status = 'active' LIMIT 1`
+    )
+    .get(user.id) as
+    | { id: string; name: string; slug: string; bio: string; whitelabel_token: string | null }
+    | undefined;
+  if (!store) {
+    await sendTelegramMessage(
+      chatId,
+      `You don't have an active store yet.\n\nCreate one from the dashboard first, then run /setupbot again.`
+    );
+    return;
+  }
+  const sellerBot = db
+    .prepare(`SELECT bot_token_enc, bot_username FROM seller_bots WHERE store_id = ? AND status = 'active' LIMIT 1`)
+    .get(store.id) as { bot_token_enc: string; bot_username: string } | undefined;
+  if (!sellerBot) {
+    await sendTelegramMessage(
+      chatId,
+      `No seller bot connected to <b>${escapeHtml(store.name)}</b> yet.\n\n` +
+        `Connect your own bot from the dashboard → Telegram tab first, then run /setupbot — I'll install its commands and the "Open Shop" button for you.`
+    );
+    return;
+  }
+
+  await sendTelegramMessage(chatId, `⚙️ Setting up @${escapeHtml(sellerBot.bot_username || 'your bot')}…`);
+  const result = await setupSellerBot(sellerBot.bot_token_enc, {
+    storeName: store.name,
+    storeBio: store.bio,
+    storeSlug: store.slug,
+    whitelabelToken: store.whitelabel_token,
+    botUsername: sellerBot.bot_username,
+  });
+
+  if (result.ok) {
+    await sendTelegramMessage(
+      chatId,
+      `✅ <b>@${escapeHtml(sellerBot.bot_username || 'your bot')}</b> is ready!\n\n` +
+        `• Commands installed: /start, /shop, /help\n` +
+        `• "Open Shop" button added (opens your storefront)\n` +
+        `• Store description set\n\n` +
+        `Open your bot and try it.`
+    );
+  } else {
+    await sendTelegramMessage(chatId, `⚠️ Setup failed: ${escapeHtml(result.error ?? 'unknown error')}`);
+  }
 }
 
 function escapeHtml(s: string): string {
@@ -170,6 +238,8 @@ export async function POST(req: Request) {
     await sendTelegramMessage(chatId, HELP_TEXT);
   } else if (cmd.command === 'purchases') {
     await handlePurchases(chatId, telegramId);
+  } else if (cmd.command === 'setupbot') {
+    await handleSetupBot(chatId, telegramId);
   } else {
     await sendTelegramMessage(chatId, `Unknown command. Try /help.`);
   }
