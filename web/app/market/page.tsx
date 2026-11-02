@@ -79,34 +79,30 @@ export default function MarketPage({ searchParams }: { searchParams: MarketSearc
   return (
     <>
       <RefCapture productId={null} />
-      <div className="page-hero">
+      <section className="hero-slim">
         <div className="wrap">
           <Reveal>
             <span className="eyebrow">The market</span>
             <h1>Marketplace</h1>
-            <p>
+            <p className="lede">
               Digital goods from independent creators — presets, templates, icons, ebooks, textures
               and UI kits. Every seller keeps 90% of every sale.
             </p>
-            <div style={{ marginTop: 24 }}>
-              <span className="badge-pill badge-ember" style={{ fontSize: 13, padding: '8px 14px' }}>
-                Every file malware-scanned before it can be sold
-              </span>
-            </div>
+            <span className="badge-pill badge-ember" style={{ fontSize: 13, padding: '8px 14px' }}>
+              Every file malware-scanned before it can be sold
+            </span>
           </Reveal>
         </div>
-      </div>
-      <div className="wrap" style={{ paddingBottom: 88 }}>
+      </section>
+      <div className="wrap">
         <Suspense>
           <MarketToolbar />
         </Suspense>
 
         {!filtering && trending.length > 0 && (
-          <section style={{ margin: '8px 0 44px' }}>
+          <section className="section section-tight">
             <Reveal>
-              <h2 style={{ fontSize: 24, margin: '0 0 18px' }}>
-                Trending <span className="glow">now</span>
-              </h2>
+              <h2>Trending <span className="glow">now</span></h2>
             </Reveal>
             <RevealGroup className="product-grid">
               {trending.map((p) => (
@@ -119,11 +115,9 @@ export default function MarketPage({ searchParams }: { searchParams: MarketSearc
         )}
 
         {!filtering && bestSellers.length > 0 && (
-          <section style={{ margin: '8px 0 44px' }}>
+          <section className="section section-tight">
             <Reveal>
-              <h2 style={{ fontSize: 24, margin: '0 0 18px' }}>
-                Best <span className="glow">sellers</span>
-              </h2>
+              <h2>Best <span className="glow">sellers</span></h2>
             </Reveal>
             <RevealGroup className="product-grid">
               {bestSellers.map((p) => (
@@ -149,18 +143,10 @@ export default function MarketPage({ searchParams }: { searchParams: MarketSearc
         ) : (
           <>
             <Reveal>
-              <p style={{ color: 'var(--muted)', fontSize: 14, margin: '0 0 20px' }}>
+              <p className="muted" style={{ marginBottom: 20 }}>
                 {products.length} {products.length === 1 ? 'product' : 'products'}
-                {q && (
-                  <>
-                    {' '}matching <strong>“{q}”</strong>
-                  </>
-                )}
-                {category && (
-                  <>
-                    {' '}in <strong>{category}</strong>
-                  </>
-                )}
+                {q && <strong> matching &ldquo;{q}&rdquo;</strong>}
+                {category && <strong> in {category}</strong>}
               </p>
             </Reveal>
             <RevealGroup className="product-grid">
