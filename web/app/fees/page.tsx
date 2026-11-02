@@ -1,141 +1,92 @@
+'use client';
+
 import Link from 'next/link';
 import { BRAND } from '../../lib/brand';
-import { formatUsd } from '../../lib/format';
-import Accordion from '../../components/Accordion';
-import Reveal from '../../components/Reveal';
-import { Squiggle } from '../../components/doodles';
+import { IconShield, IconBolt, IconCoin, IconBox, IconSend } from '../../components/doodles';
 
-const FAQ = [
-  {
-    title: 'Why a flat 10%?',
-    body: (
-      <p>
-        Because tiers are a dark pattern. One fee, stated on every page, means you always know
-        exactly what a sale earns you. The {BRAND.feePercent}% goes straight into keeping{' '}
-        {BRAND.name} running — hosting, the Telegram bot, and the payout rails. There are no
-        investors to feed and no plans to upsell you. When you earn, we earn; that&apos;s the whole
-        business model.
-      </p>
-    ),
-  },
-  {
-    title: 'When and how do I get paid?',
-    body: (
-      <p>
-        Buyers pay with crypto through NOWPayments. Your {100 - BRAND.feePercent}% share goes to
-        the USDT wallet address on your store settings — from anywhere in the world, with no
-        minimum payout and no bank account required. Double-check that address; crypto payouts
-        can&apos;t be reversed.
-      </p>
-    ),
-  },
-  {
-    title: 'Are there processing fees on top of the 10%?',
-    body: (
-      <p>
-        The {BRAND.feePercent}% is the only cut {BRAND.name} takes. Blockchain network fees are
-        between the buyer, the network, and the payment processor — we don&apos;t add anything on
-        top.
-      </p>
-    ),
-  },
-  {
-    title: 'Do affiliates cost me extra?',
-    body: (
-      <p>
-        No. The affiliate commission (5–60%, you set it per product) comes out of your{' '}
-        {100 - BRAND.feePercent}% share — never added on top of the sale price. Turn affiliates on
-        or off for any product, any time.
-      </p>
-    ),
-  },
+const perks = [
+  { icon: IconCoin, title: 'One flat fee', body: `${BRAND.feePercent}% + $0.30 per sale. No tiers, no hidden fees, no monthly charges.` },
+  { icon: IconBolt, title: 'Instant payouts', body: `Paid in ${BRAND.payoutAsset} to any wallet, anywhere in the world. No minimums.` },
+  { icon: IconShield, title: 'Seller protection', body: 'Dispute handling built in. We mediate, you keep selling.' },
+  { icon: IconBox, title: 'Digital delivery', body: 'Files served from our CDN. Buyers download instantly, you never manage storage.' },
+  { icon: IconSend, title: 'Global by default', body: 'No banking barriers. If they have Telegram or a browser, they can buy.' },
+];
+
+const comparison = [
+  { feature: 'Platform fee', digitalsale: `${BRAND.feePercent}%`, others: '10–20%+' },
+  { feature: 'Payout asset', digitalsale: BRAND.payoutAsset, others: 'Local currency / bank only' },
+  { feature: 'Payout minimum', digitalsale: 'None', others: '$10–$50+' },
+  { feature: 'Payout speed', digitalsale: 'Instant (on-chain)', others: '3–14 business days' },
+  { feature: 'Global sellers', digitalsale: 'Yes', others: 'Limited countries' },
+  { feature: 'Digital delivery', digitalsale: 'Built-in CDN', others: 'Self-hosted / limited' },
 ];
 
 export default function FeesPage() {
-  const sale = 2500; // $25.00 example sale, in cents
-  const ours = Math.round((sale * BRAND.feePercent) / 100);
-
   return (
-    <>
-      <section className="page-hero">
-        <div className="wrap">
-          <Reveal>
-            <span className="eyebrow">Fees, in the open</span>
-            <h1>
-              One flat fee.{' '}
-              <span className="squiggle-wrap">
-                Nothing else
-                <Squiggle />
-              </span>
-              .
-            </h1>
-            <p className="lede">
-              No monthly plans, no payment-processing surcharge, no payout minimum. Here&apos;s what
-              a typical {formatUsd(sale)} sale looks like on {BRAND.name}.
-            </p>
-          </Reveal>
+    <div className="wrap" style={{ paddingTop: 'var(--space-8)', paddingBottom: 'var(--space-8)' }}>
+      <header style={{ marginBottom: 'var(--space-8)', maxWidth: 800, marginLeft: 'auto', marginRight: 'auto', textAlign: 'center' }}>
+        <span className="eyebrow" style={{ marginLeft: 'auto', marginRight: 'auto' }}>Simple pricing</span>
+        <h1>Keep {100 - BRAND.feePercent}% of every sale</h1>
+        <p className="lede">One flat fee. Instant ${BRAND.payoutAsset} payouts. No borders, no minimums, no surprises.</p>
+      </header>
+
+      <section className="section" style={{ maxWidth: 800, marginLeft: 'auto', marginRight: 'auto' }}>
+        <h2 style={{ textAlign: 'center', marginBottom: 'var(--space-6)' }}>What you pay</h2>
+        <div className="perk-grid">
+          {perks.map((p, i) => (
+            <article key={i} className="perk">
+              <div style={{ display: 'inline-flex', marginBottom: 'var(--space-3)', color: 'var(--ember)' }}>
+                <p.icon size={28} />
+              </div>
+              <h3>{p.title}</h3>
+              <p>{p.body}</p>
+            </article>
+          ))}
         </div>
       </section>
-      <section className="section-tight">
-        <div className="wrap">
-          <Reveal>
-            <div className="table-wrap" style={{ maxWidth: 880 }}>
-              <table className="fee-table">
-                <thead>
-                  <tr>
-                    <th> </th>
-                    <th className="strong">{BRAND.name}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Platform fee</td>
-                    <td className="strong">{BRAND.feePercent}%</td>
-                  </tr>
-                  <tr className="us">
-                    <td>You keep on a {formatUsd(sale)} sale</td>
-                    <td className="strong">{formatUsd(sale - ours)}</td>
-                  </tr>
-                  <tr>
-                    <td>Payout asset</td>
-                    <td className="strong">{BRAND.payoutAsset}</td>
-                  </tr>
-                  <tr>
-                    <td>Who can get paid</td>
-                    <td className="strong">Anywhere in the world</td>
-                  </tr>
-                  <tr>
-                    <td>Affiliate cut</td>
-                    <td className="strong">You set it (5–60%)</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </Reveal>
-          <Reveal delay={0.08}>
-            <div className="panel" style={{ marginTop: 40, maxWidth: 880 }}>
-              <h3 style={{ marginTop: 0 }}>Where the {BRAND.feePercent}% goes</h3>
-              <p style={{ marginBottom: 0 }}>
-                Straight into keeping {BRAND.name} running — hosting, the Telegram bot, and the
-                payout rails. There are no investors to feed and no tiers to upsell you. When you
-                earn, we earn; that&apos;s the whole business model.
-              </p>
-            </div>
-          </Reveal>
-          <Reveal delay={0.12}>
-            <div style={{ marginTop: 40, maxWidth: 880 }}>
-              <span className="eyebrow">Fair questions</span>
-              <h2 style={{ marginBottom: 24 }}>Asked, answered</h2>
-              <Accordion items={FAQ} defaultOpen={0} />
-            </div>
-          </Reveal>
-          <div style={{ marginTop: 40 }}>
-            <Link href="/sell" className="btn btn-primary btn-lg">
-              Start selling — keep {100 - BRAND.feePercent}%
-            </Link>
-          </div>
+
+      <section className="section" style={{ maxWidth: 800, marginLeft: 'auto', marginRight: 'auto' }}>
+        <h2 style={{ textAlign: 'center', marginBottom: 'var(--space-6)' }}>How we compare</h2>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th style={{ textAlign: 'center' }}>{BRAND.name}</th>
+                <th style={{ textAlign: 'center' }}>Typical platforms</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparison.map((row, i) => (
+                <tr key={i}>
+                  <td>{row.feature}</td>
+                  <td style={{ textAlign: 'center', fontWeight: 600, color: 'var(--ink)' }}>{row.digitalsale}</td>
+                  <td style={{ textAlign: 'center', color: 'var(--muted)' }}>{row.others}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="fineprint" style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>
+          Comparison based on major digital product platforms as of 2024. Your experience may vary.
+        </p>
+      </section>
+
+      <section className="section" style={{ maxWidth: 800, marginLeft: 'auto', marginRight: 'auto', textAlign: 'center' }}>
+        <div className="cta-panel" style={{ borderRadius: 'var(--radius-lg)', padding: 'var(--space-7) var(--space-6)' }}>
+          <h2 style={{ color: 'var(--paper)' }}>Ready to sell?</h2>
+          <p style={{ color: 'rgba(255,255,255,0.75)', marginBottom: 'var(--space-5)' }}>
+            Open your store in two minutes. Verified by Telegram, paid in ${BRAND.payoutAsset}.
+          </p>
+          <Link href="/auth?mode=signup" className="btn" style={{ background: 'var(--paper)', color: 'var(--ink)', borderColor: 'var(--paper)' }}>
+            Create your account
+          </Link>
         </div>
       </section>
-    </>
+
+      <footer style={{ marginTop: 'var(--space-8)', paddingTop: 'var(--space-6)', borderTop: '1px solid var(--line-soft)', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
+        <p>Questions? <Link href="/how-it-works">How it works</Link> · <Link href="/terms">Terms</Link> · <Link href="/market">Browse the market</Link></p>
+      </footer>
+    </div>
   );
 }

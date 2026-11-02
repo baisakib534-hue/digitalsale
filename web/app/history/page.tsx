@@ -1,177 +1,165 @@
+'use client';
+
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { getDb } from '../../lib/db';
-import { createDownloadToken, getSessionUserId } from '../../lib/auth';
-import { formatUsd, shortId, timeAgo } from '../../lib/format';
-import EmptyState, { BasketGlyph } from '../../components/EmptyState';
-import LicenseKeyBox from '../../components/LicenseKeyBox';
-import ReviewForm from '../../components/ReviewForm';
+import { useRouter } from 'next/navigation';
+import { formatUsd, timeAgo } from '../../lib/format';
+import { IconDownload, IconSend, IconBox, IconClock } from '../../components/doodles';
+import EmptyState from '../../components/EmptyState';
 
-export const dynamic = 'force-dynamic';
-
-export const metadata = { title: 'Purchase history' };
-
-interface HistoryRow {
-  order_id: string;
-  product_id: string;
-  product_title: string;
-  product_cover: string | null;
-  store_name: string;
-  store_slug: string;
-  amount_usd: number;
-  status: string;
-  license_key: string | null;
-  created_at: string;
-}
-
-interface FileRow {
+type HistoryItem = {
   id: string;
-  filename: string;
-  size: number;
-}
-
-function currentUserId(): string | null {
-  const header = cookies().toString();
-  return getSessionUserId(new Request('http://internal/', { headers: { cookie: header } }));
-}
-
-const STATUS_LABEL: Record<string, { label: string; color: string }> = {
-  paid: { label: 'Paid', color: 'var(--ok, #16a34a)' },
-  pending: { label: 'Pending payment', color: 'var(--warn, #d97706)' },
-  failed: { label: 'Failed', color: 'var(--danger, #dc2626)' },
+  productId: string;
+  productTitle: string;
+  productCover?: string;
+  seller: { slug: string; name: string };
+  price: number;
+  fee: number;
+  status: 'completed' | 'pending' | 'refunded' | 'disputed';
+  createdAt: string;
+  downloadUrl?: string;
 };
 
-/**
- * v14: buyer-facing purchase history — every order the buyer ever placed
- * (paid, pending, failed), with dates, amounts, status, downloads and
- * license keys for paid orders.
- */
-export default function HistoryPage() {
-  const uid = currentUserId();
-  if (!uid) redirect('/auth');
+function statusBadge(status: HistoryItem['status']) {
+  const config = {
+    completed: { label: 'Completed', color: 'var(--mint)', bg: 'rgba(34,197,94,0.12)' },
+    pending: { label: 'Pending', color: 'var(--amber)', bg: 'rgba(245,158,11,0.12)' },
+    refunded: { label: 'Refunded', color: 'var(--faint)', bg: 'var(--line-soft)' },
+    disputed: { label: 'Disputed', color: 'var(--coral)', bg: 'rgba(239,68,68,0.12)' },
+  };
+  const c = config[status];
+  return (
+    <span style={{ background: c.bg, color: c.color, padding: '2px 8px', borderRadius: 'var(--radius-full)', fontSize: 12, fontWeight: 600 }}>
+      {c.label}
+    </span>
+  );
+}
 
-  const db = getDb();
-  const user = db.prepare('SELECT id, email FROM users WHERE id = ?').get(uid) as
-    | { id: string; email: string | null }
-    | undefined;
-  if (!user) redirect('/auth');
+function HistoryContent() {
+  const router = useRouter();
+  const [items, setItems] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [empty, setEmpty] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'completed' | 'pending'>('all');
 
-  const orders = db
-    .prepare(
-      `SELECT o.id AS order_id, o.product_id, o.created_at, o.amount_usd, o.status,
-              p.title AS product_title, p.cover_url AS product_cover,
-              s.name AS store_name, s.slug AS store_slug,
-              lk.license_key AS license_key
-       FROM orders o
-       JOIN products p ON p.id = o.product_id
-       JOIN stores s ON s.id = p.store_id
-       LEFT JOIN license_keys lk ON lk.order_id = o.id
-       WHERE o.buyer_id = ? OR (o.buyer_email != '' AND o.buyer_email = ?)
-       ORDER BY o.created_at DESC`
-    )
-    .all(uid, user.email ?? '') as HistoryRow[];
+  useEffect(() => {
+    fetch('/api/me/purchases')
+      .then((r) => r.json())
+      .then((data) => {
+        setItems(data.items || []);
+        setEmpty((data.items || []).length === 0);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+        setEmpty(true);
+      });
+  }, []);
 
-  const filesByOrder = new Map<string, { file: FileRow; token: string }[]>();
-  const filesStmt = db.prepare('SELECT id, filename, size FROM product_files WHERE product_id = ?');
-  for (const o of orders) {
-    if (o.status !== 'paid') continue;
-    const files = filesStmt.all(o.product_id) as FileRow[];
-    filesByOrder.set(
-      o.order_id,
-      files.map((f) => ({ file: f, token: createDownloadToken(o.order_id, f.id) }))
-    );
-  }
+  const filtered = items.filter((i) => filter === 'all' || i.status === filter);
 
   return (
-    <>
-      <div className="page-hero">
-        <div className="wrap">
-          <h1>Purchase history</h1>
-          <p>Everything you&apos;ve ever bought — orders, payments and downloads in one place.</p>
+    <div className="wrap" style={{ paddingTop: 'var(--space-6)', paddingBottom: 'var(--space-8)' }}>
+      <header style={{ marginBottom: 'var(--space-6)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+        <div>
+          <h1 style={{ marginBottom: 4 }}>Purchase history</h1>
+          <p style={{ color: 'var(--muted)', fontSize: 15 }}>{items.length} order{items.length !== 1 ? 's' : ''} total</p>
         </div>
-      </div>
-      <div className="wrap" style={{ paddingTop: 48, paddingBottom: 88, maxWidth: 900 }}>
-        {orders.length === 0 ? (
-          <EmptyState
-            glyph={<BasketGlyph />}
-            title="No orders yet"
-            body="When you buy something, it will show up here with its payment status and download links."
-            action={{ label: 'Browse the market', href: '/market' }}
-          />
-        ) : (
-          <div style={{ display: 'grid', gap: 16 }}>
-            {orders.map((o) => {
-              const st = STATUS_LABEL[o.status] ?? { label: o.status, color: 'var(--muted)' };
-              const files = filesByOrder.get(o.order_id) ?? [];
-              return (
-                <div className="order-line" key={o.order_id} style={{ padding: 20 }}>
-                  <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                    {o.product_cover && (
-                      <img
-                        src={o.product_cover}
-                        alt=""
-                        style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 12 }}
-                      />
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: 8,
-                          alignItems: 'center',
-                          flexWrap: 'wrap',
-                        }}
-                      >
-                        <strong>{o.product_title}</strong>
-                        <span
-                          className="chip"
-                          style={{ color: st.color, borderColor: st.color }}
-                        >
-                          {st.label}
-                        </span>
-                      </div>
-                      <p style={{ color: 'var(--muted)', fontSize: 14, margin: '6px 0 0' }}>
-                        {formatUsd(o.amount_usd)} · <code>{shortId(o.order_id)}</code> ·{' '}
-                        {timeAgo(o.created_at)} ·{' '}
-                        <Link href={`/store/${o.store_slug}`}>{o.store_name}</Link>
-                      </p>
-                      {o.status === 'paid' && (
-                        <div style={{ marginTop: 12 }}>
-                          {files.map(({ file, token }) => (
-                            <div key={file.id} style={{ marginBottom: 6 }}>
-                              <a
-                                className="btn btn-dark btn-sm"
-                                href={`/api/download/${token}`}
-                              >
-                                ⬇ {file.filename}
-                              </a>
-                            </div>
-                          ))}
-                          {o.license_key && (
-                            <div style={{ marginTop: 8 }}>
-                              <LicenseKeyBox licenseKey={o.license_key} />
-                            </div>
-                          )}
-                          <div style={{ marginTop: 8 }}>
-                            <ReviewForm productId={o.product_id} orderId={o.order_id} productTitle={o.product_title} />
-                          </div>
-                        </div>
-                      )}
-                      {o.status === 'pending' && (
-                        <p style={{ fontSize: 14, color: 'var(--muted)', margin: '8px 0 0' }}>
-                          Waiting for payment confirmation — it will appear here automatically
-                          once the crypto arrives.
-                        </p>
-                      )}
-                    </div>
+        <div className="tabs" role="tablist" style={{ display: 'flex', gap: 4 }}>
+          {(['all', 'completed', 'pending'] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              role="tab"
+              aria-selected={filter === f}
+              className={filter === f ? 'on' : ''}
+              onClick={() => setFilter(f)}
+              style={{ padding: '6px 14px', borderRadius: 'var(--radius-full)', fontSize: 13.5, fontWeight: 500, border: '1px solid var(--line-soft)', background: 'transparent', color: 'var(--body)', cursor: 'pointer', transition: 'all 0.15s ease' }}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+      </header>
+
+      {loading ? (
+        <div className="history-skeleton" style={{ display: 'grid', gap: 'var(--space-4)' }}>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="history-item skeleton" style={{ display: 'grid', gridTemplateColumns: '96px 1fr auto', gap: 'var(--space-4)', alignItems: 'start', padding: 'var(--space-4)', background: 'var(--panel)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius-lg)' }}>
+              <div className="skeleton" style={{ width: 96, height: 96, borderRadius: 'var(--radius-md)' }} />
+              <div style={{ display: 'grid', gap: 8 }}>
+                <div className="skeleton" style={{ height: 20, width: '60%', borderRadius: 'var(--radius-sm)' }} />
+                <div className="skeleton" style={{ height: 16, width: '40%', borderRadius: 'var(--radius-sm)' }} />
+                <div className="skeleton" style={{ height: 16, width: '30%', borderRadius: 'var(--radius-sm)' }} />
+              </div>
+              <div className="skeleton" style={{ height: 28, width: 80, borderRadius: 'var(--radius-full)' }} />
+            </div>
+          ))}
+        </div>
+      ) : empty ? (
+        <EmptyState
+          glyph={<IconBox size={48} />}
+          title="No purchases yet"
+          body="Your completed and pending orders will appear here."
+          action={{ label: 'Explore the market', href: '/market' }}
+        />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          glyph={<IconClock size={48} />}
+          title="No {filter} orders"
+          body={filter === 'completed' ? 'Completed purchases will show up here.' : filter === 'pending' ? 'Pending orders will appear here.' : 'No orders match this filter.'}
+        />
+      ) : (
+        <div className="history-grid" style={{ display: 'grid', gap: 'var(--space-4)' }}>
+          {filtered.map((item) => (
+            <article key={item.id} className="history-item" style={{ display: 'grid', gridTemplateColumns: '96px 1fr auto', gap: 'var(--space-4)', alignItems: 'start', padding: 'var(--space-4)', background: 'var(--panel)', border: '1px solid var(--line-soft)', borderRadius: 'var(--radius-lg)' }}>
+              <div style={{ width: 96, height: 96, borderRadius: 'var(--radius-md)', background: 'var(--line-soft)', overflow: 'hidden', flexShrink: 0 }}>
+                {item.productCover ? (
+                  <img src={item.productCover} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
+                    <IconBox size={28} />
                   </div>
+                )}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-3)', marginBottom: 4 }}>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 16 }}>{item.productTitle}</div>
+                    <p style={{ color: 'var(--muted)', fontSize: 13.5, marginTop: 2 }}>
+                      from <span style={{ fontWeight: 500 }}>{item.seller.name}</span>
+                    </p>
+                  </div>
+                  {statusBadge(item.status)}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap', marginTop: 8 }}>
+                  <span style={{ fontWeight: 700, fontSize: 17, color: 'var(--ink)' }}>{formatUsd(item.price)}</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 13.5 }}>{timeAgo(item.createdAt)}</span>
+                  <span style={{ color: 'var(--muted)', fontSize: 13.5 }}>Fee: {formatUsd(item.fee)}</span>
+                </div>
+                {item.downloadUrl && item.status === 'completed' && (
+                  <a href={item.downloadUrl} className="btn btn-primary" style={{ marginTop: 8, width: 'max-content', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <IconDownload size={16} /> Download
+                  </a>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                <button className="btn btn-ghost" style={{ width: 'max-content', fontSize: 13 }} onClick={() => router.push(`/store/${item.seller.slug}`)}>
+                  <IconSend size={14} /> View store
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function HistoryPage() {
+  return (
+    <Suspense fallback={<div className="history-skeleton" style={{ display: 'grid', gap: 'var(--space-4)' }}><div className="skeleton" style={{ height: 140 }} /></div>}>
+      <HistoryContent />
+    </Suspense>
   );
 }

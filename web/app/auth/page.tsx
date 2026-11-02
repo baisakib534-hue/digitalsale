@@ -8,7 +8,6 @@ import { BRAND } from '../../lib/brand';
 import { IconCheck } from '../../components/doodles';
 import TelegramLoginButton from '../../components/TelegramLoginButton';
 
-
 function AuthForm() {
   const router = useRouter();
   const sp = useSearchParams();
@@ -109,10 +108,24 @@ function AuthForm() {
           : 'Log in to manage your store or grab your downloads.'}
       </p>
       <div className="auth-tabs" role="tablist">
-        <button type="button" className={mode === 'login' ? 'on' : ''} onClick={() => { setMode('login'); setError(null); }}>
+        <button
+          type="button"
+          className={mode === 'login' ? 'on' : ''}
+          onClick={() => {
+            setMode('login');
+            setError(null);
+          }}
+        >
           Log in
         </button>
-        <button type="button" className={mode === 'signup' ? 'on' : ''} onClick={() => { setMode('signup'); setError(null); }}>
+        <button
+          type="button"
+          className={mode === 'signup' ? 'on' : ''}
+          onClick={() => {
+            setMode('signup');
+            setError(null);
+          }}
+        >
           Sign up
         </button>
       </div>

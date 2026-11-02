@@ -1,138 +1,93 @@
+'use client';
+
 import Link from 'next/link';
 import { BRAND } from '../../lib/brand';
-import Accordion from '../../components/Accordion';
-import Reveal from '../../components/Reveal';
-import { Stamp, Squiggle } from '../../components/doodles';
+import { IconBox, IconBolt, IconShield, IconSend, IconUsers, IconCoin } from '../../components/doodles';
 
-const SELLER_STEPS = [
+const steps = [
   {
-    num: '01',
+    title: 'Get verified',
+    body: 'Sign up with Gmail, connect Telegram. One tap — cryptographic proof, no passwords shared.',
+  },
+  {
     title: 'Create your store',
-    body: 'Sign up with Gmail, verify with Telegram, pick a store name and paste your USDT address. Your storefront is live in minutes — no review queue, no gatekeepers.',
+    body: 'Add a name, bio, and avatar. Your storefront is live at digitalsale.app/@yourname instantly.',
   },
   {
-    num: '02',
-    title: 'List products',
-    body: 'Upload your ebooks, presets, prompts, templates or bots. Files are scanned for safety, archived automatically, and every listing gets a shareable page with instant delivery.',
+    title: 'Add products',
+    body: 'Upload files (up to 2 GB each), set prices, add cover images and video previews. Stock limits optional.',
   },
   {
-    num: '03',
-    title: 'Get paid in USDT',
-    body: `Buyers pay with crypto through NOWPayments. ${BRAND.name} keeps a flat ${BRAND.feePercent}% and your ${100 - BRAND.feePercent}% goes straight to your wallet — wherever in the world you are.`,
-  },
-];
-
-const BUYER_STEPS = [
-  {
-    num: '01',
-    title: 'Find something you love',
-    body: 'Browse the market or follow an affiliate link. Every listing shows its store, its price in USD, and exactly what you get.',
-  },
-  {
-    num: '02',
-    title: 'Pay with crypto',
-    body: 'Checkout creates a NOWPayments invoice. Pay with the crypto you hold — no account needed to buy as a guest.',
-  },
-  {
-    num: '03',
-    title: 'Download instantly',
-    body: 'The moment payment confirms, your download link is ready in your purchases page. Re-download any time.',
-  },
-];
-
-const AFFILIATE_STEPS = [
-  {
-    num: '01',
-    title: 'Join free',
-    body: 'Anyone with a verified account can join the affiliate program — no application, no approval wait.',
-  },
-  {
-    num: '02',
     title: 'Share your link',
-    body: 'Pick any product with affiliates enabled and share your ?ref=CODE link. Clicks are tracked for 30 days.',
+    body: 'Post your store link anywhere. Buyers open it in Telegram or browser — no app install needed.',
   },
   {
-    num: '03',
-    title: 'Earn per sale',
-    body: 'When someone buys through your link you earn the seller-set commission (5–60% of the sale), paid out in USDT.',
+    title: 'Get paid instantly',
+    body: `Buyer pays → you receive ${BRAND.payoutAsset} in your wallet. No hold, no minimum, no borders.`,
   },
 ];
 
-function StepsBody({ steps }: { steps: typeof SELLER_STEPS }) {
-  return (
-    <div className="steps" style={{ marginTop: 8 }}>
-      {steps.map((s) => (
-        <div className="step" key={s.num}>
-          <div className="num">{s.num}</div>
-          <h3>{s.title}</h3>
-          <p>{s.body}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
+const features = [
+  { icon: IconBox, title: 'Digital delivery handled', body: 'Files on our CDN, instant downloads, access links that expire. You never manage storage.' },
+  { icon: IconBolt, title: 'Telegram-native', body: 'Your store works inside the Telegram Mini App. Buyers browse and buy without leaving chat.' },
+  { icon: IconShield, title: 'Verified sellers only', body: 'Every account tied to a real Telegram identity. No fake stores, no impersonation.' },
+  { icon: IconSend, title: 'Global payouts', body: `${BRAND.payoutAsset} to any wallet, anywhere. No banking rails, no country restrictions.` },
+  { icon: IconUsers, title: 'Built-in affiliates', body: 'Anyone can promote your products. You set the commission, we handle tracking and payouts.' },
+  { icon: IconCoin, title: 'Simple, transparent fees', body: `${BRAND.feePercent}% + $0.30 per sale. That's it. No tiers, no monthly fees, no surprises.` },
+];
 
 export default function HowItWorksPage() {
   return (
-    <>
-      <section className="page-hero">
-        <div className="wrap">
-          <Reveal>
-            <span className="eyebrow">How it works</span>
-            <h1>
-              From upload to payout,{' '}
-              <span className="squiggle-wrap">
-                in three steps
-                <Squiggle />
-              </span>
-              .
-            </h1>
-            <p className="lede">
-              {BRAND.name} is a borderless market for digital goods. Sellers keep{' '}
-              {100 - BRAND.feePercent}% of every sale, buyers get instant downloads, and affiliates
-              earn for spreading the word.
-            </p>
-            <div style={{ marginTop: 28 }}>
-              <Stamp tone="ember">No gatekeepers</Stamp>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-      <section className="section-tight">
-        <div className="wrap">
-          <Reveal>
-            <Accordion
-              items={[
-                { title: 'For sellers', body: <StepsBody steps={SELLER_STEPS} /> },
-                { title: 'For buyers', body: <StepsBody steps={BUYER_STEPS} /> },
-                { title: 'For affiliates', body: <StepsBody steps={AFFILIATE_STEPS} /> },
-              ]}
-            />
-          </Reveal>
-        </div>
-      </section>
-      <section className="section-tight">
-        <div className="wrap">
-          <Reveal>
-            <div className="panel cta-panel">
-              <div style={{ maxWidth: 560 }}>
-                <h2>
-                  Ready when <em>you are.</em>
-                </h2>
-                <p>Open a store, join as an affiliate, or just browse — it all starts here.</p>
-              </div>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <Link href="/sell" className="btn btn-primary btn-lg">
-                  Start selling
-                </Link>
-                <Link href="/affiliates" className="btn btn-outline-light btn-lg">
-                  Become an affiliate
-                </Link>
+    <div className="wrap" style={{ paddingTop: 'var(--space-8)', paddingBottom: 'var(--space-8)' }}>
+      <header style={{ marginBottom: 'var(--space-8)', maxWidth: 800, marginLeft: 'auto', marginRight: 'auto', textAlign: 'center' }}>
+        <span className="eyebrow" style={{ marginLeft: 'auto', marginRight: 'auto' }}>How it works</span>
+        <h1>From idea to income in five steps</h1>
+        <p className="lede">No store builders, no payment gateways, no paperwork. Just your work, verified, paid.</p>
+      </header>
+
+      <section className="section" style={{ maxWidth: 800, marginLeft: 'auto', marginRight: 'auto' }}>
+        <div className="steps">
+          {steps.map((s, i) => (
+            <div key={i} className="step">
+              <div style={{ flex: 1 }}>
+                <h3 style={{ marginBottom: 'var(--space-2)' }}>{s.title}</h3>
+                <p style={{ color: 'var(--body)', margin: 0 }}>{s.body}</p>
               </div>
             </div>
-          </Reveal>
+          ))}
         </div>
       </section>
-    </>
+
+      <section className="section" style={{ maxWidth: 800, marginLeft: 'auto', marginRight: 'auto' }}>
+        <h2 style={{ textAlign: 'center', marginBottom: 'var(--space-6)' }}>What makes it different</h2>
+        <div className="perk-grid">
+          {features.map((f, i) => (
+            <article key={i} className="perk">
+              <div style={{ display: 'inline-flex', marginBottom: 'var(--space-3)', color: 'var(--ember)' }}>
+                <f.icon size={28} />
+              </div>
+              <h3>{f.title}</h3>
+              <p>{f.body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="section" style={{ maxWidth: 800, marginLeft: 'auto', marginRight: 'auto', textAlign: 'center' }}>
+        <div className="cta-panel" style={{ borderRadius: 'var(--radius-lg)', padding: 'var(--space-7) var(--space-6)' }}>
+          <h2 style={{ color: 'var(--paper)' }}>Start selling today</h2>
+          <p style={{ color: 'rgba(255,255,255,0.75)', marginBottom: 'var(--space-5)' }}>
+            Two minutes to your first storefront. Verified by Telegram, paid in ${BRAND.payoutAsset}.
+          </p>
+          <Link href="/auth?mode=signup" className="btn" style={{ background: 'var(--paper)', color: 'var(--ink)', borderColor: 'var(--paper)' }}>
+            Create your account
+          </Link>
+        </div>
+      </section>
+
+      <footer style={{ marginTop: 'var(--space-8)', paddingTop: 'var(--space-6)', borderTop: '1px solid var(--line-soft)', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
+        <p><Link href="/fees">Fees</Link> · <Link href="/terms">Terms</Link> · <Link href="/market">Browse the market</Link></p>
+      </footer>
+    </div>
   );
 }

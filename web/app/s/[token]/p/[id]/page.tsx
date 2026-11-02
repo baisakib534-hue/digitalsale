@@ -1,138 +1,123 @@
-import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
-import { getDb } from '../../../../../lib/db';
-import { getStoreByWhiteLabel } from '../../../../../lib/stores';
-import { stockInfo } from '../../../../../lib/stock';
+'use client';
+
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { formatUsd, timeAgo } from '../../../../../lib/format';
-import BuyPanel from '../../../../../components/BuyPanel';
-import ProductMedia from '../../../../../components/ProductMedia';
-import { WhitelabelBack } from '../../../../../components/Whitelabel';
+import { IconBox, IconBolt, IconSend, IconTag, IconDownload, IconShield, IconCoin } from '../../../../../components/doodles';
+import EmptyState from '../../../../../components/EmptyState';
 
-export const dynamic = 'force-dynamic';
+type ProductData = {
+  id: string;
+  title: string;
+  coverUrl?: string;
+  price: number;
+  description?: string;
+  category: string;
+  seller: { slug: string; name: string; avatarUrl?: string };
+  createdAt: string;
+  shortToken: string;
+};
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { token: string; id: string };
-}): Promise<Metadata> {
-  const db = getDb();
-  const store = getStoreByWhiteLabel(db, params.token);
-  if (!store) return { title: { absolute: 'Store' } };
-  const row = db.prepare('SELECT title FROM products WHERE id = ? AND store_id = ?').get(
-    params.id,
-    store.id
-  ) as { title: string } | undefined;
-  return { title: { absolute: row ? `${row.title} — ${store.name}` : store.name } };
-}
+export default function ShortProductPage() {
+  const { token, id } = useParams<{ token: string; id: string }>();
+  const [product, setProduct] = useState<ProductData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-/** White-label product page: seller branding only, our payment gateway at checkout. */
-export default function WhitelabelProduct({ params }: { params: { token: string; id: string } }) {
-  const db = getDb();
-  const store = getStoreByWhiteLabel(db, params.token);
-  if (!store) notFound();
+  useEffect(() => {
+    if (!token || !id) return;
+    fetch(`/api/s/${token}/p/${id}`)
+      .then((r) => {
+        if (!r.ok) throw new Error('Product not found');
+        return r.json();
+      })
+      .then((data) => {
+        setProduct(data);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError('This product link has expired or never existed.');
+        setLoading(false);
+      });
+  }, [token, id]);
 
-  const row = db
-    .prepare(
-      `SELECT id, title, description, price_usd, category, cover_url, video_url, stock_limit, status
-       FROM products WHERE id = ? AND store_id = ?`
-    )
-    .get(params.id, store.id) as
-    | {
-        id: string;
-        title: string;
-        description: string;
-        price_usd: number;
-        category: string;
-        cover_url: string | null;
-        video_url: string | null;
-        stock_limit: number | null;
-        status: string;
-      }
-    | undefined;
-  if (!row || row.status !== 'published') notFound();
+  if (loading) {
+    return (
+      <div className="wrap" style={{ paddingTop: 'var(--space-10)', paddingBottom: 'var(--space-10)', maxWidth: 720, margin: '0 auto' }}>
+        <div className="skeleton" style={{ height: 400, borderRadius: 'var(--radius-lg)' }} />
+      </div>
+    );
+  }
 
-  const stock = stockInfo(db, row);
-  const gallery = db
-    .prepare('SELECT id, filename, mime FROM product_images WHERE product_id = ? ORDER BY position')
-    .all(row.id) as { id: string; filename: string; mime: string }[];
-  const images = gallery.map((g) => ({ ...g, url: `/api/images/${g.id}` }));
+  if (error || !product) {
+    return (
+      <div className="wrap" style={{ paddingTop: 'var(--space-10)', paddingBottom: 'var(--space-10)', textAlign: 'center' }}>
+        <EmptyState
+          glyph={<IconBox size={48} />}
+          title="Product not found"
+          body={error || 'This product link has expired or never existed.'}
+          action={{ label: 'Browse the market', href: '/market' }}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="wl">
-      <div className="wrap" style={{ paddingTop: 28, paddingBottom: 72, maxWidth: 1080 }}>
-        <WhitelabelBack token={params.token} />
-        {/* Seller mini-identity */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 24 }}>
-          {store.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={store.avatar_url}
-              alt={store.name}
-              style={{ width: 44, height: 44, borderRadius: 12, objectFit: 'cover' }}
-            />
-          ) : (
-            <span
-              aria-hidden
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                background: 'var(--ink)',
-                color: 'var(--paper)',
-                display: 'grid',
-                placeItems: 'center',
-                fontWeight: 700,
-                fontSize: 20,
-              }}
-            >
-              {store.name.charAt(0).toUpperCase()}
-            </span>
-          )}
-          <div>
-            <div style={{ fontWeight: 700 }}>{store.name}</div>
-            <div style={{ fontSize: 13, color: 'var(--muted)' }}>{row.category}</div>
-          </div>
-        </div>
+    <article style={{ maxWidth: 720, margin: '0 auto', padding: 'var(--space-6) var(--space-4)' }}>
+      <Link href={`/s/${token}`} className="link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 'var(--space-5)', fontSize: 14, color: 'var(--muted)' }}>
+        <IconSend size={14} /> Back to store
+      </Link>
 
-        <div className="product-layout">
-          <div>
-            <ProductMedia
-              title={row.title}
-              videoUrl={row.video_url}
-              images={images}
-              coverUrl={row.cover_url}
-            />
-            <h1 style={{ marginTop: 16 }}>{row.title}</h1>
-            {row.description && (
-              <div style={{ marginTop: 16 }}>
-                {row.description.split('\n\n').map((p, i) => (
-                  <p key={i}>{p}</p>
-                ))}
-              </div>
-            )}
-          </div>
-          <aside className="buy-panel" aria-label="Buy this product">
-            {stock.soldOut ? (
-              <div>
-                <div className="price-line">{formatUsd(row.price_usd)}</div>
-                <div className="form-error" role="status" style={{ marginTop: 12 }}>
-                  Sold out — the seller limited this product and every spot is gone.
-                </div>
-              </div>
-            ) : (
-              <div>
-                <div className="price-line">{formatUsd(row.price_usd)}</div>
-                {stock.stockLimit !== null && (
-                  <p className="form-note" style={{ margin: '8px 0 16px' }}>
-                    Only {stock.remaining} of {stock.stockLimit} spots left.
-                  </p>
-                )}
-                <BuyPanel productId={row.id} priceCents={row.price_usd} />
-              </div>
-            )}
-          </aside>
+      <div style={{ display: 'flex', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
+        <div style={{ width: 64, height: 64, borderRadius: 'var(--radius-md)', background: 'var(--line-soft)', overflow: 'hidden', flexShrink: 0 }}>
+          {product.seller.avatarUrl ? (
+            <img src={product.seller.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: 'var(--muted)' }}>
+              {product.seller.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+        </div>
+        <div>
+          <Link href={`/s/${token}`} className="link" style={{ fontWeight: 600, fontSize: 15 }}>
+            {product.seller.name}
+          </Link>
+          <p style={{ color: 'var(--muted)', fontSize: 13.5, marginTop: 2 }}>{timeAgo(product.createdAt)}</p>
         </div>
       </div>
-    </div>
+
+      <div style={{ aspectRatio: '16/10', borderRadius: 'var(--radius-lg)', overflow: 'hidden', background: 'var(--line-soft)', marginBottom: 'var(--space-5)' }}>
+        {product.coverUrl ? (
+          <img src={product.coverUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}>
+            <IconTag size={48} />
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-4)', flexWrap: 'wrap', marginBottom: 'var(--space-4)' }}>
+        <div>
+          <span className="product-card-category" style={{ marginRight: 'var(--space-3)' }}>{product.category}</span>
+          <span style={{ fontSize: 'clamp(1.75rem, 3vw, 2.25rem)', fontWeight: 700, color: 'var(--ink)' }}>{formatUsd(product.price)}</span>
+        </div>
+      </div>
+
+      {product.description && (
+        <div style={{ marginBottom: 'var(--space-6)', lineHeight: 1.7, color: 'var(--body)' }}>
+          {product.description}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+        <Link href={`/store/${product.seller.slug}/p/${product.id}`} className="btn btn-primary" style={{ flex: 1, textAlign: 'center' }}>
+          <IconSend size={16} /> View full product
+        </Link>
+        <Link href={`/store/${product.seller.slug}`} className="btn btn-outline" style={{ flex: 1, textAlign: 'center' }}>
+          <IconBox size={16} /> View store
+        </Link>
+      </div>
+    </article>
   );
 }

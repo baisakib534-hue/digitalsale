@@ -1,142 +1,131 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import { BRAND } from '../../lib/brand';
-import { Stamp, IconCheck } from '../../components/doodles';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { haptic } from '../../lib/telegram-client';
+import { IconShield, IconSend } from '../../components/doodles';
 
-type Phase = 'loading' | 'unverified' | 'verified' | 'error';
-
-/**
- * Telegram verification (v3, mandatory before selling).
- * Web path: POST /api/auth/telegram/verify-token → deep link
- * t.me/Digitalsale_bot?start=v_<token> → tap it → bot verifies →
- * this page polls /api/auth/telegram/status until verified.
- * Mini App path: initData verifies instantly (handled by TelegramInit).
- */
-export default function VerifyPage() {
-  const [phase, setPhase] = useState<Phase>('loading');
-  const [deepLink, setDeepLink] = useState<string | null>(null);
-  const [error, setError] = useState('');
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const stopPolling = () => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  };
-
-  const checkStatus = useCallback(async (): Promise<boolean> => {
-    try {
-      const r = await fetch('/api/auth/telegram/status', { cache: 'no-store' });
-      if (!r.ok) return false;
-      const j = await r.json();
-      return j.verified === true;
-    } catch {
-      return false;
-    }
-  }, []);
+function VerifyContent() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  const hash = sp.get('hash');
+  const [state, setState] = useState<'idle' | 'checking' | 'success' | 'error'>('idle');
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (await checkStatus()) {
-        if (!cancelled) setPhase('verified');
-        return;
-      }
-      try {
-        const r = await fetch('/api/auth/telegram/verify-token', { method: 'POST' });
-        if (r.status === 401) {
-          if (!cancelled) {
-            setPhase('error');
-            setError('You need to log in first.');
-          }
-          return;
+    if (!hash) {
+      setState('error');
+      setMessage('No verification code. Open the link from the bot.');
+      return;
+    }
+    setState('checking');
+    setMessage('Checking your verification link…');
+    fetch('/api/auth/verify', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ hash }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) {
+          haptic('success');
+          setState('success');
+          setMessage('Telegram verified — you can now sell and receive payouts.');
+          setTimeout(() => router.replace('/dashboard'), 1200);
+        } else {
+          haptic('error');
+          setState('error');
+          setMessage(data.error || 'This link expired or was already used. Request a new one from the bot.');
         }
-        if (!r.ok) throw new Error('token-failed');
-        const j = await r.json();
-        if (cancelled) return;
-        setDeepLink(j.deepLink);
-        setPhase('unverified');
-        // Poll until the bot confirms the tap (15-min token, poll up to ~10 min).
-        let tries = 0;
-        pollRef.current = setInterval(async () => {
-          tries += 1;
-          if (tries > 120 || (await checkStatus())) {
-            stopPolling();
-            if (!cancelled && tries <= 120) setPhase('verified');
-          }
-        }, 5000);
-      } catch {
-        if (!cancelled) {
-          setPhase('error');
-          setError('Could not start verification. Please try again.');
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-      stopPolling();
-    };
-  }, [checkStatus]);
+      })
+      .catch(() => {
+        haptic('error');
+        setState('error');
+        setMessage('Network error. Try again or open the link from the bot.');
+      });
+  }, [hash, router]);
+
+  if (state === 'checking') {
+    return (
+      <div className="form-card" style={{ textAlign: 'center' }}>
+        <div className="verify-spinner" style={{ margin: '0 auto 20px' }} aria-hidden="true" />
+        <h2 style={{ color: 'var(--ink)', marginBottom: 12 }}>Verifying your Telegram account</h2>
+        <p style={{ color: 'var(--muted)' }}>{message}</p>
+      </div>
+    );
+  }
+
+  if (state === 'success') {
+    return (
+      <div className="form-card" style={{ textAlign: 'center' }}>
+        <div style={{ margin: '0 auto 20px', display: 'inline-flex', color: 'var(--mint)' }}>
+          <IconShield size={48} />
+        </div>
+        <h2 style={{ color: 'var(--ink)', marginBottom: 12 }}>Verified</h2>
+        <p style={{ color: 'var(--body)', marginBottom: 24 }}>{message}</p>
+        <button
+          className="btn btn-primary"
+          onClick={() => router.replace('/dashboard')}
+          style={{ width: '100%' }}
+        >
+          <IconSend size={16} /> Go to dashboard
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <section className="section">
-      <div className="wrap" style={{ maxWidth: 640 }}>
-        <span className="eyebrow">Account verification</span>
-        <h1>Verify with Telegram</h1>
-        {phase === 'loading' && <p className="lede">Checking your verification status…</p>}
-        {phase === 'error' && (
-          <div className="panel">
-            <p style={{ margin: 0 }}>{error}</p>
-            <Link href="/auth" className="btn btn-dark" style={{ marginTop: 16 }}>
-              Go to login
-            </Link>
-          </div>
-        )}
-        {phase === 'verified' && (
-          <div className="panel" style={{ borderColor: 'var(--success)' }}>
-            <div style={{ marginBottom: 16 }}>
-              <Stamp tone="moss" rotate={false}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <IconCheck size={14} />
-                  Verified
-                </span>
-              </Stamp>
-            </div>
-            <h3 style={{ marginTop: 0 }}>You&apos;re verified</h3>
-            <p>Your Telegram account is linked. You can now open a store, list products and join the affiliate program.</p>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              <Link href="/dashboard" className="btn btn-dark">
-                Go to dashboard
-              </Link>
-              <Link href="/sell" className="btn btn-outline">
-                Start selling
-              </Link>
-            </div>
-          </div>
-        )}
-        {phase === 'unverified' && deepLink && (
-          <div className="panel">
-            <p className="lede" style={{ fontSize: 16 }}>
-              {BRAND.name} asks every seller to verify with Telegram — it keeps fake stores and
-              scammers out. Tap the button below, hit <b>Start</b> in the bot, then come back here.
-              This page updates itself.
-            </p>
-            <a href={deepLink} target="_blank" rel="noreferrer" className="btn btn-primary btn-lg">
-              Open @{process.env.NEXT_PUBLIC_BOT_USERNAME ?? 'Digitalsale_bot'} to verify
-            </a>
-            <p className="fineprint" style={{ marginTop: 16 }}>
-              Waiting for the bot… this page checks automatically every few seconds. The link
-              expires in 15 minutes.
-            </p>
-            <div className="verify-spinner" aria-hidden>
-              <span />
-            </div>
-          </div>
-        )}
+    <div className="form-card" style={{ textAlign: 'center' }}>
+      <div style={{ margin: '0 auto 20px', display: 'inline-flex', color: 'var(--faint)' }}>
+        <IconShield size={48} />
       </div>
-    </section>
+      <h2 style={{ color: 'var(--ink)', marginBottom: 12 }}>Verification failed</h2>
+      <p style={{ color: 'var(--body)', marginBottom: 24 }}>{message}</p>
+      <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <button className="btn btn-primary" onClick={() => router.push('/auth')}>
+          Try again
+        </button>
+        <button className="btn btn-outline" onClick={() => router.push('/market')}>
+          Back to market
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <div className="auth-layout">
+      <div className="auth-panel">
+        <span className="eyebrow" style={{ color: 'var(--ember)' }}>
+          Telegram verification
+        </span>
+        <h2 style={{ color: 'var(--ink)', fontSize: '2.5rem', marginTop: 16 }}>
+          Connect your account.
+        </h2>
+        <p style={{ color: 'var(--body)', maxWidth: 420 }}>
+          Every seller is verified through Telegram. One tap, no fake stores, instant trust.
+        </p>
+        <ul style={{ listStyle: 'none', padding: 0, margin: '32px 0 0', display: 'grid', gap: 16 }}>
+          {[
+            'Your Telegram identity is cryptographically signed',
+            'No passwords to share, no SIM-swap risk',
+            'Works in the Telegram app and on the web',
+          ].map((t) => (
+            <li key={t} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <span className="auth-check" style={{ display: 'inline-flex', marginTop: 3, color: 'var(--mint)' }}>
+                <IconShield size={18} />
+              </span>
+              <span style={{ color: 'var(--body)', fontSize: 15 }}>{t}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="auth-form-wrap">
+        <Suspense>
+          <VerifyContent />
+        </Suspense>
+      </div>
+    </div>
   );
 }

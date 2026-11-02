@@ -1,103 +1,77 @@
-import type { Metadata } from 'next';
+'use client';
+
 import Link from 'next/link';
 import { BRAND } from '../../lib/brand';
+import { IconShield, IconBox, IconSend, IconCoin, IconUsers, IconBolt } from '../../components/doodles';
 
-export const metadata: Metadata = {
-  title: 'Terms of Service',
-  description: 'The rules of the Digitalsale marketplace: legal goods only, seller responsibility, and platform liability limits.',
-};
+const sections = [
+  {
+    title: 'Acceptance of terms',
+    body: `By creating an account or using ${BRAND.name}, you agree to these terms. If you don't agree, don't use the service.`,
+  },
+  {
+    title: 'Eligibility',
+    body: 'You must be 18+ and able to form a binding contract. One account per person. Accounts are verified via Telegram — no exceptions.',
+  },
+  {
+    title: 'Your content',
+    body: `You keep full ownership of everything you upload. You grant ${BRAND.name} a license to host, deliver, and display your files to buyers. You're responsible for ensuring you have the right to sell what you upload — no copyrighted material you don't own, no illegal content, no malware.`,
+  },
+  {
+    title: 'Fees & payouts',
+    body: `${BRAND.name} charges ${BRAND.feePercent}% + $0.30 per successful sale. The rest is sent instantly in ${BRAND.payoutAsset} to the wallet you provide. No minimums, no holds. Network fees (if any) are deducted from the payout.`,
+  },
+  {
+    title: 'Refunds & disputes',
+    body: 'Digital goods are non-refundable by default. If a buyer reports an issue (file missing, not as described), we mediate. Abuse from either side leads to account suspension.',
+  },
+  {
+    title: 'Affiliate program',
+    body: 'Sellers can enable affiliates. You set the commission % per product. Affiliates earn on verified sales. We track, report, and pay affiliates from the seller share — no extra cost to buyers.',
+  },
+  {
+    title: 'Telegram integration',
+    body: "Your store works as a Telegram Mini App. Telegram's terms also apply when using the Mini App. We don't control Telegram; if they change things, your web storefront stays live.",
+  },
+  {
+    title: 'Termination',
+    body: 'You can delete your account anytime. We can suspend or terminate for violations (fraud, illegal content, repeated disputes, ToS abuse). On termination, unpaid balances are paid out after a 30-day dispute window.',
+  },
+  {
+    title: 'Disclaimers',
+    body: `THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND. ${BRAND.name} IS NOT LIABLE FOR INDIRECT, INCIDENTAL, OR CONSEQUENTIAL DAMAGES. MAXIMUM LIABILITY LIMITED TO FEES PAID IN THE PRIOR 12 MONTHS.`,
+  },
+  {
+    title: 'Changes',
+    body: 'We may update these terms. Material changes get 30 days notice via email and in-app banner. Continued use = acceptance.',
+  },
+  {
+    title: 'Contact',
+    body: `Questions about these terms? Email legal@${BRAND.name.toLowerCase().replace(/\s+/g, '')}.app or open a support ticket from your dashboard.`,
+  },
+];
 
-/**
- * v13.2: Terms of Service — legal-only marketplace, permanent bans for
- * illegal listings, and platform liability limits.
- */
 export default function TermsPage() {
   return (
-    <div className="wrap" style={{ paddingTop: 56, paddingBottom: 88, maxWidth: 780 }}>
-      <span className="eyebrow">The fine print</span>
-      <h1 style={{ marginTop: 12 }}>Terms of Service</h1>
-      <p style={{ color: 'var(--muted)', fontSize: 14.5 }}>Last updated: November 2026</p>
+    <div className="wrap" style={{ paddingTop: 'var(--space-8)', paddingBottom: 'var(--space-8)' }}>
+      <header style={{ marginBottom: 'var(--space-8)', maxWidth: 800, marginLeft: 'auto', marginRight: 'auto', textAlign: 'center' }}>
+        <span className="eyebrow" style={{ marginLeft: 'auto', marginRight: 'auto' }}>Terms of service</span>
+        <h1>Plain terms for a fair marketplace</h1>
+        <p className="lede" style={{ color: 'var(--muted)' }}>Last updated: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+      </header>
 
-      <div className="panel" style={{ marginTop: 24 }}>
-        <h2 style={{ marginTop: 0 }}>1. What {BRAND.name} is</h2>
-        <p>
-          {BRAND.name} is a <strong>marketplace</strong>: it connects independent sellers with
-          buyers of digital goods. We provide the storefront, the checkout, and the delivery
-          rails — but every product is created, listed, priced, and delivered by its seller.
-          A purchase is a transaction <strong>between buyer and seller</strong>; {BRAND.name}{' '}
-          is the venue, not the vendor.
-        </p>
+      <main style={{ maxWidth: 800, marginLeft: 'auto', marginRight: 'auto' }}>
+        {sections.map((s, i) => (
+          <section key={i} style={{ marginBottom: 'var(--space-7)', paddingBottom: 'var(--space-6)', borderBottom: i < sections.length - 1 ? '1px solid var(--line-soft)' : 'none' }}>
+            <h2 style={{ marginBottom: 'var(--space-3)' }}>{s.title}</h2>
+            <p style={{ color: 'var(--body)', lineHeight: 1.7 }}>{s.body}</p>
+          </section>
+        ))}
+      </main>
 
-        <h2>2. Legal goods only</h2>
-        <p>
-          Only <strong>legal</strong> digital goods may be listed. The following are prohibited,
-          without exception:
-        </p>
-        <ul>
-          <li>Anything illegal in the seller&apos;s or buyer&apos;s jurisdiction</li>
-          <li>Stolen, pirated, or unlicensed content — including resold accounts, keys, and cracks</li>
-          <li>Malware, spyware, phishing kits, or anything designed to harm devices or steal data</li>
-          <li>Content that infringes copyrights, trademarks, or other intellectual property</li>
-          <li>Fraudulent listings, fake reviews, or impersonation of another creator</li>
-          <li>Personal data of third parties, or content obtained without consent</li>
-        </ul>
-        <p>
-          <strong>Illegal listings mean a permanent ban.</strong> If a listing is confirmed to be
-          illegal, the product is removed immediately and the seller&apos;s account is{' '}
-          <strong>banned forever</strong> — no warnings, no second chances, no new accounts.
-          Attempting to evade a ban extends it to every associated account.
-        </p>
-
-        <h2>3. Sellers are responsible for their listings</h2>
-        <p>
-          By listing a product you confirm that you have the legal right to sell it, that it is
-          exactly what your listing describes, and that it complies with all applicable laws.
-          You are solely responsible for the legality, quality, and accuracy of what you sell —
-          including any license keys, files, and claims in your product pages.
-        </p>
-
-        <h2>4. Platform liability</h2>
-        <p>
-          To the maximum extent permitted by law, {BRAND.name} and its operator are{' '}
-          <strong>not liable</strong> for:
-        </p>
-        <ul>
-          <li>The content, legality, quality, or fitness of any product listed by a seller</li>
-          <li>Disputes between buyers and sellers, including non-delivery or misrepresentation</li>
-          <li>Losses arising from the use of purchased digital goods</li>
-          <li>Interruptions, downtime, or data loss on the platform</li>
-        </ul>
-        <p>
-          Products are provided <strong>&ldquo;as is&rdquo;</strong>. By using {BRAND.name} you
-          agree to hold the platform harmless from any claim arising from a seller&apos;s
-          listing or a buyer&apos;s purchase.
-        </p>
-
-        <h2>5. Payments</h2>
-        <p>
-          Checkout runs through our payment gateway in cryptocurrency ({BRAND.payoutAsset}).
-          Because crypto payments cannot be reversed, <strong>all sales are final</strong> — we
-          do not process refunds. If a product is not as described, report it: confirmed
-          violations lead to product removal and, for illegal goods, a permanent seller ban.
-        </p>
-
-        <h2>6. Accounts &amp; verification</h2>
-        <p>
-          Selling, listing products, and joining the affiliate program require a{' '}
-          <strong>Telegram-verified</strong> account — one real person per account. Fake,
-          duplicate, or automated accounts may be suspended without notice.
-        </p>
-
-        <h2>7. Changes</h2>
-        <p>
-          We may update these terms as the marketplace grows. Continued use of {BRAND.name}{' '}
-          after a change means you accept the new terms.
-        </p>
-
-        <p style={{ marginTop: 32 }}>
-          <Link href="/market">← Back to the market</Link>
-        </p>
-      </div>
+      <footer style={{ marginTop: 'var(--space-8)', paddingTop: 'var(--space-6)', borderTop: '1px solid var(--line-soft)', textAlign: 'center', color: 'var(--muted)', fontSize: 14 }}>
+        <p><Link href="/fees">Fees</Link> · <Link href="/how-it-works">How it works</Link> · <Link href="/market">Browse the market</Link></p>
+      </footer>
     </div>
   );
 }
