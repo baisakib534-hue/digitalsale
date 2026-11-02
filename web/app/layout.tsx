@@ -6,6 +6,7 @@ import ThemeProvider from '../components/ThemeProvider';
 import SiteHeader, { BrandMark } from '../components/SiteHeader';
 import SoundProvider from '../components/SoundProvider';
 import SoundToggle from '../components/SoundToggle';
+import Link from 'next/link';
 import { BRAND } from '../lib/brand';
 import './globals.css';
 
@@ -71,48 +72,54 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {!whitelabel && <SiteHeader />}
         <main>{children}</main>
         {!whitelabel && (
-        <footer className="site-footer">
-          <div className="wrap">
-            <div className="cols">
-              <div>
-                <span className="brand">
-                  <BrandMark />
-                  {BRAND.name}
-                </span>
-                <p style={{ fontSize: 14.5, maxWidth: 300 }}>
-                  {BRAND.description}
-                </p>
-                <div style={{ marginTop: 20 }}>
-                  <SoundToggle />
+          <footer className="site-footer">
+            <div className="wrap">
+              <div className="cols">
+                <div>
+                  <Link href="/" className="brand">
+                    <BrandMark />
+                    {BRAND.name}
+                  </Link>
+                  <p className="fineprint" style={{ maxWidth: 300, marginTop: 12 }}>
+                    {BRAND.description}
+                  </p>
+                  <div style={{ marginTop: 20 }}>
+                    <SoundToggle />
+                  </div>
+                </div>
+                <div>
+                  <h4>Marketplace</h4>
+                  <ul>
+                    <li><a href="/market">Browse all</a></li>
+                    <li><a href="/market?category=Presets">Presets</a></li>
+                    <li><a href="/market?category=Templates">Templates</a></li>
+                    <li><a href="/affiliates">Affiliates</a></li>
+                  </ul>
+                </div>
+                <div>
+                  <h4>Sellers</h4>
+                  <ul>
+                    <li><a href="/auth?mode=signup">Start selling</a></li>
+                    <li><a href="/dashboard">Seller dashboard</a></li>
+                    <li><a href="/fees">Fees & payouts</a></li>
+                  </ul>
+                </div>
+                <div>
+                  <h4>Project</h4>
+                  <ul>
+                    <li><a href="/how-it-works">How it works</a></li>
+                    <li><a href="/terms">Terms of Service</a></li>
+                    <li><a href={`mailto:${BRAND.supportEmail}`}>Contact</a></li>
+                    <li><a href="/market?sort=newest">New arrivals</a></li>
+                  </ul>
                 </div>
               </div>
-              <div>
-                <h4>Marketplace</h4>
-                <a href="/market">Browse all</a>
-                <a href="/market?category=Presets">Presets</a>
-                <a href="/market?category=Templates">Templates</a>
-                <a href="/affiliates">Affiliates</a>
-              </div>
-              <div>
-                <h4>Sellers</h4>
-                <a href="/auth?mode=signup">Start selling</a>
-                <a href="/dashboard">Seller dashboard</a>
-                <a href="/fees">Fees & payouts</a>
-              </div>
-              <div>
-                <h4>Project</h4>
-                <a href="/how-it-works">How it works</a>
-                <a href="/terms">Terms of Service</a>
-                <a href={`mailto:${BRAND.supportEmail}`}>Contact</a>
-                <a href="/market?sort=newest">New arrivals</a>
+              <div className="fineprint">
+                <span>© 2026 {BRAND.name}. A borderless market for digital work.</span>
+                <span>{BRAND.feePercent}% flat fee · Payouts in {BRAND.payoutAsset}</span>
               </div>
             </div>
-            <div className="fine">
-              <span>© 2026 {BRAND.name}. A borderless market for digital work.</span>
-              <span>{BRAND.feePercent}% flat fee · Payouts in {BRAND.payoutAsset}</span>
-            </div>
-          </div>
-        </footer>
+          </footer>
         )}
       </body>
     </html>
