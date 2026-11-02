@@ -39,21 +39,17 @@ export default function LandingPage() {
       db.prepare(`SELECT COUNT(*) AS c FROM reports WHERE status != 'open'`).get() as { c: number }
     ).c,
     sellersVerified: (
-      db.prepare('SELECT COUNT(*) AS c FROM users WHERE telegram_verified = 1').get() as {
-        c: number;
-      }
+      db.prepare('SELECT COUNT(*) AS c FROM users WHERE telegram_verified = 1').get() as { c: number }
     ).c,
   };
 
   return (
     <>
-      {/* ---------- hero ---------- */}
+      {/* Hero — one thing the eye lands on first */}
       <section className="hero-slim">
         <div className="wrap">
           <Reveal delay={0.08}>
-            <h1>
-              Digital goods, <span className="glow">made by independents</span>.
-            </h1>
+            <h1>Digital goods, <span className="glow">made by independents</span>.</h1>
           </Reveal>
           <Reveal delay={0.16}>
             <p className="lede">
@@ -63,8 +59,8 @@ export default function LandingPage() {
           </Reveal>
           <Reveal delay={0.24}>
             <LandingSearch />
-            <div style={{ marginTop: 20 }}>
-              <Link href="/market" className="btn btn-dark btn-lg">
+            <div className="hero-cta">
+              <Link href="/market" className="btn btn-primary btn-lg">
                 Browse everything
               </Link>
             </div>
@@ -72,14 +68,14 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------- fresh listings ---------- */}
-      <section className="section-tight" style={{ paddingBottom: 8 }}>
+      {/* Fresh listings */}
+      <section className="section section-tight" style={{ paddingBottom: 8 }}>
         <div className="wrap">
           <Reveal>
             <div className="section-head">
               <div>
                 <span className="eyebrow">Fresh listings</span>
-                <h2 style={{ marginBottom: 0 }}>From the market this week</h2>
+                <h2>From the market this week</h2>
               </div>
             </div>
           </Reveal>
@@ -106,14 +102,14 @@ export default function LandingPage() {
         )}
       </section>
 
-      {/* ---------- trust strip ---------- */}
+      {/* Trust strip — four pillars */}
       <div className="trust-strip">
         <div className="wrap">
           <RevealGroup className="trust-grid">
             <RevealItem>
               <div className="trust-item">
-                <span className="t-icon">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <span className="t-icon" aria-hidden>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="2" y="2" width="20" height="20" rx="2" />
                     <path d="M12 22V12" />
                     <path d="M22 12H12" />
@@ -127,8 +123,8 @@ export default function LandingPage() {
             </RevealItem>
             <RevealItem>
               <div className="trust-item">
-                <span className="t-icon">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <span className="t-icon" aria-hidden>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                   </svg>
                 </span>
@@ -140,8 +136,8 @@ export default function LandingPage() {
             </RevealItem>
             <RevealItem>
               <div className="trust-item">
-                <span className="t-icon">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <span className="t-icon" aria-hidden>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
                     <line x1="4" y1="22" x2="4" y2="15" />
                   </svg>
@@ -154,8 +150,8 @@ export default function LandingPage() {
             </RevealItem>
             <RevealItem>
               <div className="trust-item">
-                <span className="t-icon">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <span className="t-icon" aria-hidden>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />
                     <path d="M12 6v6l4 2" />
                   </svg>
@@ -170,17 +166,15 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ---------- safety, in the open (live numbers) ---------- */}
+      {/* Safety, in the open — live numbers */}
       <section className="section safety-open">
         <div className="wrap">
           <Reveal>
             <span className="eyebrow">Safety, in the open</span>
-            <h2>
-              Trust you can <em>count.</em>
-            </h2>
+            <h2>Trust you can <em>count.</em></h2>
             <p className="lede">
-              No fake testimonials, no inflated counters. These are live numbers from our own
-              database — what&apos;s actually listed, scanned, and resolved right now.
+              No fake testimonials, no inflated counters. These are live numbers from our database —
+              what&apos;s actually listed, scanned, and resolved right now.
             </p>
           </Reveal>
           <Reveal delay={0.1}>
@@ -204,24 +198,20 @@ export default function LandingPage() {
             </div>
           </Reveal>
           <p className="fineprint">
-            Every upload is scanned for executables, disguised file types, and anything hiding
-            inside ZIP archives. Reports from buyers are public, and three independent reports
-            pause a listing until a moderator reviews it.
+            Every upload is scanned for executables, disguised file types, and anything hiding inside
+            ZIP archives. Reports from buyers are public, and three independent reports pause a
+            listing until a moderator reviews it.
           </p>
         </div>
       </section>
 
-      {/* ---------- roadmap ---------- */}
-      <section className="section-tight">
+      {/* Roadmap */}
+      <section className="section section-tight">
         <div className="wrap">
           <Reveal>
             <span className="eyebrow">Roadmap</span>
-            <h2>
-              What&apos;s <em>coming next.</em>
-            </h2>
-            <p className="lede">
-              We&apos;re building in the open — here&apos;s what&apos;s on the way.
-            </p>
+            <h2>What&apos;s <em>coming next.</em></h2>
+            <p className="lede">We&apos;re building in the open — here&apos;s what&apos;s on the way.</p>
           </Reveal>
           <RevealGroup style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginTop: 8 }}>
             <RevealItem>
@@ -229,8 +219,8 @@ export default function LandingPage() {
                 <span className="chip" style={{ marginBottom: 12 }}>Coming soon</span>
                 <h3 style={{ margin: '0 0 8px' }}>Local payments</h3>
                 <p style={{ color: 'var(--muted)', fontSize: 14.5, margin: 0 }}>
-                  Pay the way you already do — local payment methods are coming, so buyers
-                  can check out in their own currency, no crypto wallet needed.
+                  Pay the way you already do — local payment methods are coming, so buyers can check
+                  out in their own currency, no crypto wallet needed.
                 </p>
               </div>
             </RevealItem>
@@ -239,8 +229,8 @@ export default function LandingPage() {
                 <span className="chip" style={{ marginBottom: 12 }}>Coming soon</span>
                 <h3 style={{ margin: '0 0 8px' }}>On Google Search</h3>
                 <p style={{ color: 'var(--muted)', fontSize: 14.5, margin: 0 }}>
-                  We&apos;re publishing the marketplace to Google, so your products get
-                  discovered by buyers searching the web — not just inside Telegram.
+                  We&apos;re publishing the marketplace to Google, so your products get discovered by
+                  buyers searching the web — not just inside Telegram.
                 </p>
               </div>
             </RevealItem>
@@ -248,7 +238,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------- marquee ---------- */}
+      {/* Marquee — compact proof strip */}
       <div className="marquee" aria-hidden>
         <div className="marquee-track">
           {['10% flat fee — keep 90%', 'USDT payouts, anywhere', 'Instant downloads', 'No payout minimums', 'Telegram-native', 'Sell from anywhere', '10% flat fee — keep 90%', 'USDT payouts, anywhere', 'Instant downloads', 'No payout minimums', 'Telegram-native', 'Sell from anywhere'].map((item, i) => (
@@ -259,25 +249,23 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ---------- buyer CTA ---------- */}
-      <section className="section-tight">
+      {/* Buyer CTA — bottom of page, buyer-first */}
+      <section className="section section-tight">
         <div className="wrap">
           <Reveal>
             <div className="panel cta-panel">
               <div style={{ maxWidth: 560 }}>
-                <h2>
-                  Find something <em>made for you.</em>
-                </h2>
+                <h2>Find something <em>made for you.</em></h2>
                 <p>
-                  Browse independent digital goods — presets, templates, ebooks and more. Buy
-                  in seconds, download instantly, yours forever.
+                  Browse independent digital goods — presets, templates, ebooks and more. Buy in
+                  seconds, download instantly, yours forever.
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <Link href="/market" className="btn btn-primary btn-lg">
                   Browse the market
                 </Link>
-                <Link href="/sell" className="btn btn-outline-light btn-lg">
+                <Link href="/sell" className="btn btn-outline btn-lg">
                   Sell your work
                 </Link>
               </div>
