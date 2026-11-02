@@ -59,13 +59,11 @@ const PERK_ICONS = [CoinSvg, SendSvg, BoltSvg, UsersSvg, BoxSvg, ShieldSvg];
 export default function SellPage() {
   return (
     <>
-      <section className="page-hero">
+      <section className="hero-slim">
         <div className="wrap">
           <Reveal>
             <span className="eyebrow">Sell on {BRAND.name}</span>
-            <h1>
-              Your work, <span className="glow">your payout</span>.
-            </h1>
+            <h1>Your work, <span className="glow">your payout</span>.</h1>
             <p className="lede">
               Open a store in minutes, list digital products, and keep {100 - BRAND.feePercent}% of
               every sale — paid out in {BRAND.payoutAsset}, anywhere on earth.
@@ -75,22 +73,23 @@ export default function SellPage() {
               content means a <strong>permanent ban</strong> — no warnings. See our{' '}
               <Link href="/terms">Terms of Service</Link>.
             </p>
-            <div className="hero-ctas">
+            <div className="hero-cta">
               <Link href="/auth?mode=signup" className="btn btn-primary btn-lg">
                 Open your store — it&apos;s free
               </Link>
-              <Link href="/fees" className="btn btn-outline-light btn-lg">
-                See the fees
-              </Link>
             </div>
-            <div style={{ marginTop: 28, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Link href="/fees" className="btn btn-outline btn-sm">See the fees</Link>
+              <Link href="/how-it-works" className="btn btn-outline btn-sm">How it works</Link>
+            </div>
+            <div style={{ marginTop: 24, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               <span className="badge-pill badge-ember">Free to start</span>
               <span className="badge-pill">No monthly plans</span>
             </div>
           </Reveal>
         </div>
       </section>
-      <section className="section-tight">
+      <section className="section section-tight">
         <div className="wrap">
           <Reveal>
             <span className="eyebrow">Why sellers choose {BRAND.name}</span>
@@ -110,7 +109,7 @@ export default function SellPage() {
           </RevealGroup>
         </div>
       </section>
-      <section className="section-tight" style={{ background: 'var(--paper-2)', borderTop: '2px solid var(--ink)', borderBottom: '2px solid var(--ink)' }}>
+      <section className="section section-tight" style={{ background: 'var(--paper-2)', borderTop: '2px solid var(--ink)', borderBottom: '2px solid var(--ink)' }}>
         <div className="wrap">
           <Reveal>
             <span className="eyebrow">What sells here</span>
@@ -129,14 +128,12 @@ export default function SellPage() {
           </Reveal>
         </div>
       </section>
-      <section className="section-tight">
+      <section className="section section-tight">
         <div className="wrap">
           <Reveal>
             <div className="panel cta-panel">
               <div style={{ maxWidth: 560 }}>
-                <h2>
-                  Two minutes to your <em>first listing.</em>
-                </h2>
+                <h2>Two minutes to your <em>first listing.</em></h2>
                 <p>Sign up with Gmail, verify with Telegram, name your store. That&apos;s the whole setup.</p>
               </div>
               <Link href="/auth?mode=signup" className="btn btn-primary btn-lg">
