@@ -22,35 +22,29 @@ const BADGE_TONE: Record<Badge, 'ember' | 'mint' | 'gold'> = {
   new: 'mint',
 };
 
-export default function ProductCard({ product, badges = [] }: { product: CardProduct; badges?: Badge[] }) {
+export default function ProductCard({
+  product,
+  badges = [],
+}: {
+  product: CardProduct;
+  badges?: Badge[];
+}) {
   return (
     <article className="product-card">
       <Link href={`/product/${product.id}`} className="cover" aria-label={product.title}>
         {product.cover_url ? (
           <img src={product.cover_url} alt={product.title} loading="lazy" />
         ) : (
-          <div style={{ width: '100%', height: '100%', background: 'var(--paper-2)' }} />
+          <div className="cover-empty" />
         )}
         {badges.length > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 10,
-              left: 10,
-              display: 'flex',
-              gap: 6,
-              flexWrap: 'wrap',
-            }}
-          >
+          <div className="badge-stack" aria-label="Product badges">
             {badges.map((b) => (
               <span key={b} className={`badge-pill badge-${BADGE_TONE[b]}`}>
                 {BADGE_LABEL[b]}
               </span>
             ))}
           </div>
-        )}
-        {product.cover_url && (
-          <span className="has-video-badge" aria-hidden>Video</span>
         )}
       </Link>
       <div className="body">
@@ -63,19 +57,15 @@ export default function ProductCard({ product, badges = [] }: { product: CardPro
         </span>
         <div className="foot">
           <span className="price">{formatUsd(product.price_usd)}</span>
-          <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-            {product.rating_count ? (
-              <span
-                style={{
-                  fontSize: 13,
-                  color: 'var(--muted)',
-                  whiteSpace: 'nowrap',
-                }}
-                title={`${product.rating_count} review${product.rating_count === 1 ? '' : 's'}`}
-              >
-                ★ {product.rating_avg?.toFixed(1)} ({product.rating_count})
+          <span className="foot-extras">
+            {product.rating_count && product.rating_avg !== null && product.rating_avg !== undefined && (
+              <span className="rating" title={`${product.rating_count} review${product.rating_count === 1 ? '' : 's'}`}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                {product.rating_avg.toFixed(1)} ({product.rating_count})
               </span>
-            ) : null}
+            )}
             <WishlistButton productId={product.id} initial={product.wishlisted ?? false} size={32} />
           </span>
         </div>
