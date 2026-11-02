@@ -46,6 +46,21 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   return { title: `${row.title} — ${formatUsd(row.price_usd)}` };
 }
 
+const ShieldSvg = (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z" />
+    <path d="M9 12l2 2 4-4" />
+  </svg>
+);
+
+const UsersSvg = (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="9" cy="8" r="3.5" />
+    <path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5" />
+    <path d="M16 4.6a3.5 3.5 0 010 6.8M17.5 14.9c2 .7 3.4 2.5 4 5.1" />
+  </svg>
+);
+
 export default function ProductPage({ params }: { params: { id: string } }) {
   const db = getDb();
   const row = db
@@ -77,6 +92,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
     .split(/\r?\n\r?\n|\r?\n/)
     .map((p) => p.trim())
     .filter(Boolean);
+
   const tags = row.tags
     .split(',')
     .map((t) => t.trim())
@@ -88,6 +104,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
   const soldOut = stock.soldOut && !underReview;
   const badges = getBadges(db).get(row.id) ?? [];
   const rating = productRating(db, row.id);
+
   const soldTotal = (
     db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE product_id = ? AND status = 'paid'`).get(row.id) as {
       c: number;
@@ -109,21 +126,6 @@ export default function ProductPage({ params }: { params: { id: string } }) {
     /* cookies unavailable */
   }
 
-  const ShieldSvg = (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z" />
-      <path d="M9 12l2 2 4-4" />
-    </svg>
-  );
-
-  const UsersSvg = (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="9" cy="8" r="3.5" />
-      <path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5" />
-      <path d="M16 4.6a3.5 3.5 0 010 6.8M17.5 14.9c2 .7 3.4 2.5 4 5.1" />
-    </svg>
-  );
-
   return (
     <div className="wrap" style={{ paddingTop: 56, paddingBottom: 88 }}>
       <RefCapture productId={row.id} />
@@ -135,13 +137,10 @@ export default function ProductPage({ params }: { params: { id: string } }) {
             images={gallery}
             coverUrl={row.cover_url}
           />
-          <div className="cat-row">
+          <div className="badge-stack">
             <span className="chip">{row.category}</span>
             {badges.map((b) => (
-              <span
-                key={b}
-                className={`badge-pill badge-${b === 'best-seller' ? 'ember' : b === 'trending' ? 'gold' : 'mint'}`}
-              >
+              <span key={b} className={`badge-pill badge-${b === 'best-seller' ? 'ember' : b === 'trending' ? 'gold' : 'mint'}`}>
                 {BADGE_LABEL[b]}
               </span>
             ))}
@@ -208,7 +207,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
             </div>
           )}
           {tags.length > 0 && !underReview && (
-            <div className="cat-row" style={{ marginTop: 24 }}>
+            <div className="badge-stack" style={{ marginTop: 24 }}>
               {tags.map((t) => (
                 <Link key={t} href={`/market?q=${encodeURIComponent(t)}`} className="chip clickable">
                   {t}
