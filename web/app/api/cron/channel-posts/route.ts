@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '../../../../lib/db';
 import { decryptBotToken } from '../../../../lib/bot-notify';
 import { formatUsd } from '../../../../lib/format';
+import { BRAND } from '../../../../lib/brand';
 
-const SITE_URL = 'https://digitalsale-pi.vercel.app';
+const SITE_URL = BRAND.siteUrl;
 
 /**
  * Drain the channel post queue: for each pending item, post the product

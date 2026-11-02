@@ -10,4 +10,5 @@ export const BRAND = {
   currency: 'USD',
   payoutAsset: 'USDT',
   supportEmail: 'hello@digitalsale.example',
+  siteUrl: 'https://digitalsale-one.vercel.app',
 } as const;

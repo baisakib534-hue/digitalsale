@@ -8,6 +8,7 @@ import {
 } from '../../../../lib/verify';
 import { parseBotCommand, cleanupExpiredNotifications } from '../../../../lib/bot-notify';
 import { formatUsd, shortId, timeAgo } from '../../../../lib/format';
+import { BRAND } from '../../../../lib/brand';
 
 /**
  * Telegram webhook receiver for @Digitalsale_bot.
@@ -55,7 +56,7 @@ const WELCOME_TEXT =
 
 const WELCOME_MARKUP = {
   inline_keyboard: [
-    [{ text: '🛍 Open Digitalsale', web_app: { url: 'https://digitalsale-pi.vercel.app' } }],
+    [{ text: '🛍 Open Digitalsale', web_app: { url: BRAND.siteUrl } }],
   ],
 };
 

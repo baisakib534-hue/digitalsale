@@ -7,6 +7,11 @@
  * v7: Redbubble-range expansion — the same breadth Redbubble allows, as
  * digital goods (design files, print-ready art, wallpapers): stickers,
  * apparel graphics, wall art/posters, phone & tech.
+ *
+ * v15: Etsy digital-coverage expansion — every digital product type that
+ * sells on Etsy can now be listed here: planners & journals, SVG cut files,
+ * wedding & invitations, spreadsheets & trackers, Notion templates,
+ * resume templates, fonts.
  */
 export const CATEGORIES = [
   'Ebooks & Guides',
@@ -23,6 +28,13 @@ export const CATEGORIES = [
   'Apparel Designs',
   'Wall Art & Posters',
   'Phone & Tech',
+  'Planners & Journals',
+  'SVG Cut Files',
+  'Wedding & Invitations',
+  'Spreadsheets & Trackers',
+  'Notion Templates',
+  'Resume Templates',
+  'Fonts',
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];

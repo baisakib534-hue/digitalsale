@@ -179,6 +179,77 @@ const PRODUCTS: SeedProduct[] = [
     art: 'wave',
     affiliate: 20,
   },
+  // v15: Etsy digital-coverage categories.
+  {
+    slug: 'deep-work-planner',
+    title: 'Deep Work — 2026 Digital Planner',
+    description:
+      'A hyperlinked digital planner for Goodnotes, Notability and PDF apps: daily, weekly and monthly layouts, habit trackers, project pages and a yearly review spread. 600+ pages, tabbed navigation, minimalist design. Free updates for life.',
+    priceCents: 1200,
+    category: 'Planners & Journals',
+    tags: 'planner,digital-planner,goodnotes,productivity,2026',
+    art: 'cards',
+  },
+  {
+    slug: 'floral-svg-bundle',
+    title: 'Wildflower Meadow — 120 SVG Cut Files',
+    description:
+      '120 hand-drawn wildflower SVG cut files with layered PNG and DXF versions: bouquets, borders, wreaths and single stems. Tested on Cricut and Silhouette. Full commercial license — sell up to 500 physical end products.',
+    priceCents: 800,
+    category: 'SVG Cut Files',
+    tags: 'svg,cut-files,cricut,silhouette,flowers',
+    art: 'blobs',
+  },
+  {
+    slug: 'wedding-suite-canva',
+    title: 'Evergreen Wedding Suite — 45 Canva Templates',
+    description:
+      '45 fully editable Canva templates: invitations, save-the-dates, seating charts, menus, programs and thank-you cards in one coordinated suite. Change fonts, colors and wording in minutes — print at home or send digitally.',
+    priceCents: 2500,
+    category: 'Wedding & Invitations',
+    tags: 'wedding,invitation,canva,templates,stationery',
+    art: 'cards',
+  },
+  {
+    slug: 'money-os-sheet',
+    title: 'Money OS — Ultimate Budget Spreadsheet',
+    description:
+      'A Google Sheets + Excel budget system with automated dashboards: monthly budgets, debt payoff planner, savings goals, net-worth tracker and a no-spend challenge mode. Video walkthrough included. Works on phone and desktop.',
+    priceCents: 1900,
+    category: 'Spreadsheets & Trackers',
+    tags: 'budget,spreadsheet,google-sheets,finance,tracker',
+    art: 'chart',
+  },
+  {
+    slug: 'creator-notion-os',
+    title: 'Creator OS — Notion Template Bundle',
+    description:
+      '12 linked Notion templates for content creators: content calendar, idea bank, sponsorship CRM, analytics dashboard, digital product planner and finance tracker. Duplicate into your workspace in one click — setup guide included.',
+    priceCents: 2900,
+    category: 'Notion Templates',
+    tags: 'notion,templates,creator,productivity,content',
+    art: 'ui',
+  },
+  {
+    slug: 'hired-resume-kit',
+    title: 'Hired — 12 ATS Resume Templates',
+    description:
+      '12 ATS-friendly resume templates in Word, Google Docs and Canva: clean layouts that parse correctly, with a cover-letter set and a 40-page guide on writing bullets that get interviews. Trusted by 3,000+ job seekers.',
+    priceCents: 1500,
+    category: 'Resume Templates',
+    tags: 'resume,cv,templates,job,ats,career',
+    art: 'book',
+  },
+  {
+    slug: 'grotesk-font-duo',
+    title: 'Fern Grotesk — Font Duo (12 Weights)',
+    description:
+      'A versatile grotesque font duo: 12 weights from Thin to Black plus matching italics, with 400+ glyphs, ligatures and multilingual support. OTF, TTF and WOFF2. Desktop + web license for up to 5 users included.',
+    priceCents: 3400,
+    category: 'Fonts',
+    tags: 'font,typeface,typography,grotesk,design',
+    art: 'icons',
+  },
 ];
 
 function grain(id: string): string {
@@ -333,6 +404,13 @@ function coverSvg(p: SeedProduct): string {
     'moss-tee-graphics': ['FOREST PUNK', '40 TEE GRAPHICS'],
     'ember-wall-art': ['EMBER HOUR', '25 WALL ART PRINTS'],
     'night-market-wallpapers': ['NIGHT MARKET', 'WALLPAPERS + ICONS'],
+    'deep-work-planner': ['DEEP WORK', '2026 DIGITAL PLANNER'],
+    'floral-svg-bundle': ['WILDFLOWER MEADOW', '120 SVG CUT FILES'],
+    'wedding-suite-canva': ['EVERGREEN', '45 WEDDING TEMPLATES'],
+    'money-os-sheet': ['MONEY OS', 'BUDGET SPREADSHEET'],
+    'creator-notion-os': ['CREATOR OS', 'NOTION BUNDLE'],
+    'hired-resume-kit': ['HIRED', '12 RESUME TEMPLATES'],
+    'grotesk-font-duo': ['FERN GROTESK', 'FONT DUO · 12 WEIGHTS'],
   };
   const [t, s] = titles[p.slug];
   return `${head}${body}${titleBand(t, s)}${tail}`;

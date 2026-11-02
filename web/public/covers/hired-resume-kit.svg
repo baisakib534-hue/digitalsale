@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="1000" viewBox="0 0 800 1000"><defs><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="n"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0"/><feComposite operator="over" in2="SourceGraphic"/></filter></defs><rect width="800" height="1000" fill="#3E2F23"/>
+        <rect x="180" y="120" width="440" height="640" rx="10" fill="#FAF5EA"/>
+        <rect x="180" y="120" width="36" height="640" fill="#476B4F"/>
+        <text x="400" y="420" text-anchor="middle" font-family="Georgia, serif" font-size="300" fill="#0C241B">S</text>
+        <g fill="#0C241B"><path d="M250 640 l20 -58 l20 58 l-11 0 l0 24 l-18 0 l0 -24 Z"/><path d="M330 640 l20 -58 l20 58 l-11 0 l0 24 l-18 0 l0 -24 Z"/><path d="M500 640 l20 -58 l20 58 l-11 0 l0 24 l-18 0 l0 -24 Z"/><path d="M580 640 l20 -58 l20 58 l-11 0 l0 24 l-18 0 l0 -24 Z"/></g>
+        <rect x="240" y="700" width="320" height="12" rx="6" fill="#0C241B" opacity="0.25"/><rect x="0" y="820" width="800" height="180" fill="#0C241B"/>
+    <text x="48" y="892" font-family="Georgia, serif" font-size="44" fill="#FAF5EA">HIRED</text>
+    <text x="48" y="936" font-family="Verdana, sans-serif" font-size="22" letter-spacing="3" fill="#9DBE8C">12 RESUME TEMPLATES</text><rect width="800" height="1000" filter="url(#grain)" opacity="0.5"/></svg>
