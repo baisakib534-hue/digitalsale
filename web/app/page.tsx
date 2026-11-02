@@ -5,43 +5,9 @@ import ProductCard, { type CardProduct } from '../components/ProductCard';
 import { enrichCards } from '../lib/cards';
 import EmptyState, { SproutGlyph } from '../components/EmptyState';
 import LandingSearch from '../components/LandingSearch';
-import RefCapture from '../components/RefCapture';
 import Reveal, { RevealGroup, RevealItem } from '../components/Reveal';
-import { ArrowDoodle, IconShield, IconBolt, IconFlag, IconCoin } from '../components/doodles';
 
 export const dynamic = 'force-dynamic';
-
-const MARQUEE_ITEMS = [
-  '10% flat fee — keep 90%',
-  'USDT payouts, anywhere',
-  'Instant downloads',
-  'No payout minimums',
-  'Telegram-native',
-  'Sell from anywhere',
-];
-
-const TRUST_ITEMS = [
-  {
-    icon: <IconShield size={22} />,
-    title: 'Telegram-verified sellers',
-    body: 'Every seller links a real Telegram account before listing. No faceless stores.',
-  },
-  {
-    icon: <IconBolt size={22} />,
-    title: 'Every file malware-scanned',
-    body: 'Uploads are inspected — including inside ZIPs — before they can be sold.',
-  },
-  {
-    icon: <IconFlag size={22} />,
-    title: 'Reports are public',
-    body: 'Anyone can report a listing; three reports pause it pending review.',
-  },
-  {
-    icon: <IconCoin size={22} />,
-    title: '10% flat fee — nothing hidden',
-    body: 'One fee, stated everywhere. No tiers, no surprises, no payout minimums.',
-  },
-];
 
 function statDisplay(n: number): string {
   return n > 0 ? n.toLocaleString('en-US') : '—';
@@ -81,14 +47,12 @@ export default function LandingPage() {
 
   return (
     <>
-      <RefCapture productId={null} />
       {/* ---------- hero ---------- */}
       <section className="hero-slim">
         <div className="wrap">
           <Reveal delay={0.08}>
             <h1>
-              Digital goods,{' '}
-              <span className="glow">made by independents</span>.
+              Digital goods, <span className="glow">made by independents</span>.
             </h1>
           </Reveal>
           <Reveal delay={0.16}>
@@ -99,10 +63,6 @@ export default function LandingPage() {
           </Reveal>
           <Reveal delay={0.24}>
             <LandingSearch />
-            <div className="hero-doodle-row">
-              <ArrowDoodle />
-              <span className="hero-meta">search the market — no account needed to browse</span>
-            </div>
             <div style={{ marginTop: 20 }}>
               <Link href="/market" className="btn btn-dark btn-lg">
                 Browse everything
@@ -112,7 +72,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------- products marquee (top of page) ---------- */}
+      {/* ---------- fresh listings ---------- */}
       <section className="section-tight" style={{ paddingBottom: 8 }}>
         <div className="wrap">
           <Reveal>
@@ -150,17 +110,62 @@ export default function LandingPage() {
       <div className="trust-strip">
         <div className="wrap">
           <RevealGroup className="trust-grid">
-            {TRUST_ITEMS.map((t) => (
-              <RevealItem key={t.title}>
-                <div className="trust-item">
-                  <span className="t-icon">{t.icon}</span>
-                  <div>
-                    <b>{t.title}</b>
-                    <span>{t.body}</span>
-                  </div>
+            <RevealItem>
+              <div className="trust-item">
+                <span className="t-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="2" y="2" width="20" height="20" rx="2" />
+                    <path d="M12 22V12" />
+                    <path d="M22 12H12" />
+                  </svg>
+                </span>
+                <div>
+                  <b>Telegram-verified sellers</b>
+                  <span>Every seller links a real Telegram account before listing. No faceless stores.</span>
                 </div>
-              </RevealItem>
-            ))}
+              </div>
+            </RevealItem>
+            <RevealItem>
+              <div className="trust-item">
+                <span className="t-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                  </svg>
+                </span>
+                <div>
+                  <b>Every file malware-scanned</b>
+                  <span>Uploads are inspected — including inside ZIPs — before they can be sold.</span>
+                </div>
+              </div>
+            </RevealItem>
+            <RevealItem>
+              <div className="trust-item">
+                <span className="t-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                    <line x1="4" y1="22" x2="4" y2="15" />
+                  </svg>
+                </span>
+                <div>
+                  <b>Reports are public</b>
+                  <span>Anyone can report a listing; three reports pause it pending review.</span>
+                </div>
+              </div>
+            </RevealItem>
+            <RevealItem>
+              <div className="trust-item">
+                <span className="t-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 6v6l4 2" />
+                  </svg>
+                </span>
+                <div>
+                  <b>10% flat fee — nothing hidden</b>
+                  <span>One fee, stated everywhere. No tiers, no surprises, no payout minimums.</span>
+                </div>
+              </div>
+            </RevealItem>
           </RevealGroup>
         </div>
       </div>
@@ -246,7 +251,7 @@ export default function LandingPage() {
       {/* ---------- marquee ---------- */}
       <div className="marquee" aria-hidden>
         <div className="marquee-track">
-          {[...MARQUEE_ITEMS, ...MARQUEE_ITEMS].map((item, i) => (
+          {['10% flat fee — keep 90%', 'USDT payouts, anywhere', 'Instant downloads', 'No payout minimums', 'Telegram-native', 'Sell from anywhere', '10% flat fee — keep 90%', 'USDT payouts, anywhere', 'Instant downloads', 'No payout minimums', 'Telegram-native', 'Sell from anywhere'].map((item, i) => (
             <span key={i}>
               {item} <span className="tick-star">✦</span>
             </span>
