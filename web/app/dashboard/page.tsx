@@ -1,90 +1,100 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import EmptyState, { BasketGlyph, SproutGlyph } from '../../components/EmptyState';
-import { CATEGORIES, isCategory } from '../../lib/categories';
-import { formatUsd, shortId, timeAgo } from '../../lib/format';
-import { haptic } from '../../lib/telegram-client';
-import StoreProfileExtras from '../../components/StoreProfileExtras';
+import { useRouter } from 'next/navigation';
+import {
+  LayoutDashboardGlyph,
+  PackageGlyph,
+  ReceiptGlyph,
+  CreditCardGlyph,
+  UsersGlyph,
+  SendGlyph,
+  SettingsGlyph,
+  PlusGlyph,
+  EditGlyph,
+  TrashGlyph,
+  EyeGlyph,
+  ExternalLinkGlyph,
+  CopyGlyph,
+  CheckGlyph,
+  XGlyph,
+  AlertTriangleGlyph,
+  InfoGlyph,
+  LoaderGlyph,
+  ChevronDownGlyph,
+  ChevronUpGlyph,
+  SearchGlyph,
+  FilterGlyph,
+  DownloadGlyph,
+  UploadGlyph,
+  KeyGlyph,
+  TagGlyph,
+  ImageGlyph,
+  VideoGlyph,
+  GlobeGlyph,
+  MailGlyph,
+  WalletGlyph,
+  BarChartGlyph,
+  BellGlyph,
+  ShieldGlyph,
+  LockGlyph,
+  UnlockGlyph,
+  RefreshCwGlyph,
+  MenuGlyph,
+  XGlyph as CloseGlyph,
+} from '@/components/icons';
+import EmptyState, { SproutGlyph, BasketGlyph } from '../../components/EmptyState';
+import ProductCard, { type CardProduct } from '../../components/ProductCard';
+import WishlistButton from '../../components/WishlistButton';
+import { formatUsd, shortId, timeAgo } from '@/lib/format';
+import { CATEGORIES } from '@/lib/categories';
 
-interface Me {
+const TABS = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboardGlyph },
+  { id: 'products', label: 'Products', icon: PackageGlyph },
+  { id: 'orders', label: 'Orders', icon: ReceiptGlyph },
+  { id: 'payouts', label: 'Payouts', icon: CreditCardGlyph },
+  { id: 'affiliates', label: 'Affiliates', icon: UsersGlyph },
+  { id: 'telegram', label: 'Telegram', icon: SendGlyph },
+  { id: 'settings', label: 'Settings', icon: SettingsGlyph },
+] as const;
+
+type TabId = (typeof TABS)[number]['id'];
+
+interface User {
   id: string;
-  name: string;
-  email: string | null;
-  hasStore: boolean;
+  email: string;
+  name: string | null;
+  avatar_url: string | null;
+  verified: number;
   storeSlug: string | null;
-  telegramVerified: boolean;
+  telegram_id: string | null;
+  created_at: string;
 }
 
-interface ProductRow {
+interface Product {
   id: string;
   title: string;
+  slug: string;
   description: string;
   price_usd: number;
   category: string;
   tags: string;
-  status: string;
-  flagged: number;
+  cover_url: string | null;
   video_url: string | null;
   stock_limit: number | null;
-  license_keys: number | null;
+  license_keys: number;
+  status: string;
+  flagged: number;
   affiliate_enabled: number | null;
   affiliate_commission: number | null;
+  created_at: string;
   store_name: string;
   store_slug: string;
-  created_at: string;
 }
 
-interface ImageRow {
-  id: string;
-  filename: string;
-  mime: string;
-  size: number;
-  position: number;
-  created_at: string;
-}
-
-interface LicenseRow {
-  id: string;
-  license_key: string;
-  status: string;
-  activations: number;
-  max_activations: number | null;
-  created_at: string;
-  revoked_at: string | null;
-}
-
-interface DiscountRow {
-  id: string;
-  code: string;
-  kind: 'percent' | 'fixed';
-  value: number;
-  max_uses: number | null;
-  used_count: number;
-  active: number;
-  expires_at: string | null;
-  created_at: string;
-}
-
-/** Persistent banner for accounts that haven't verified with Telegram yet (v3). */
-function VerifyBanner() {
-  return (
-    <div className="verify-banner" role="alert">
-      <div>
-        <strong>Verify with Telegram to start selling.</strong>
-        <span> Every seller verifies once — it keeps fake stores and scammers out.</span>
-      </div>
-      <Link href="/verify" className="btn btn-primary btn-sm">
-        Verify now
-      </Link>
-    </div>
-  );
-}
-
-interface OrderRow {
+interface Order {
   id: string;
   product_id: string;
   product_title: string;
@@ -93,1556 +103,1321 @@ interface OrderRow {
   fee_usd: number;
   seller_usd: number;
   status: string;
+  nowpayments_invoice_id: string | null;
   created_at: string;
 }
 
-interface FileRow {
+interface TgBot {
+  bot_username: string | null;
+  status: string;
+}
+
+interface TgChannel {
+  id: string;
+  channel_id: string;
+  channel_title: string | null;
+}
+
+interface StoreSettings {
+  name: string;
+  bio: string;
+  payout: string;
+}
+
+interface SocialLinks {
+  website: string;
+  telegram: string;
+  x: string;
+  instagram: string;
+  youtube: string;
+}
+
+interface DiscountCode {
+  id: string;
+  code: string;
+  kind: 'percent' | 'fixed';
+  value: number;
+  used_count: number;
+  max_uses: number | null;
+  active: number;
+}
+
+interface LicenseKey {
+  id: string;
+  license_key: string;
+  status: string;
+  activations: number;
+  max_activations: number | null;
+  created_at: string;
+}
+
+interface ProductFile {
   id: string;
   filename: string;
   size: number;
   provider: string;
 }
 
-interface StoreRow {
+interface ProductImage {
   id: string;
-  name: string;
-  slug: string;
-  bio: string;
-  payout_usdt_address: string;
-  avatar_url: string | null;
-  banner_url: string | null;
-  socials: string | null;
-  whitelabel_token: string | null;
+  filename: string;
 }
 
-type Tab = 'overview' | 'products' | 'orders' | 'store' | 'telegram';
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'products', label: 'Products' },
-  { id: 'orders', label: 'Orders' },
-  { id: 'store', label: 'Store settings' },
-  { id: 'telegram', label: 'Telegram' },
-];
-
-function fmtSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+interface PayoutSummary {
+  totalEarned: number;
+  totalPaidOut: number;
+  pendingBalance: number;
+  nextPayoutDate: string | null;
+  payoutAddress: string;
 }
 
-export default function DashboardPage() {
+interface AffiliateData {
+  code: string;
+  usdtAddress: string;
+  joinedAt: string;
+  totals: {
+    clicks: number;
+    sales: number;
+    earnedUsd: number;
+  };
+  products: Array<{
+    productId: string;
+    title: string;
+    priceUsd: number;
+    commission: number | null;
+    sales: number;
+    earnedUsd: number;
+    clicks: number;
+  }>;
+}
+
+function Dashboard() {
   const router = useRouter();
-  const [phase, setPhase] = useState<'loading' | 'no-store' | 'ready'>('loading');
-  const [me, setMe] = useState<Me | null>(null);
-  const [tab, setTab] = useState<Tab>('overview');
-  const [products, setProducts] = useState<ProductRow[]>([]);
-  const [orders, setOrders] = useState<OrderRow[]>([]);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabId>('overview');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // create-store form
-  const [storeName, setStoreName] = useState('');
-  const [storeBio, setStoreBio] = useState('');
-  const [storeBusy, setStoreBusy] = useState(false);
-  const [storeError, setStoreError] = useState<string | null>(null);
+  // User & store
+  const [me, setMe] = useState<User | null>(null);
+  const [loadingMe, setLoadingMe] = useState(true);
 
-  // new product form
-  const [np, setNp] = useState({ title: '', description: '', price: '', category: 'Presets', tags: '', videoUrl: '', status: 'draft', stockLimited: false, stockLimit: '', licenseKeys: false, affiliateEnabled: false, affiliateCommission: 20 });
-  const [npBusy, setNpBusy] = useState(false);
-  const [npError, setNpError] = useState<string | null>(null);
+  // Products
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState<string | null>(null);
 
-  // edit product
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [edit, setEdit] = useState({ title: '', description: '', price: '', category: '', tags: '', videoUrl: '', status: 'draft', stockLimited: false, stockLimit: '', licenseKeys: false, affiliateEnabled: false, affiliateCommission: 20 });
-  const [editFiles, setEditFiles] = useState<FileRow[]>([]);
-  const [editImages, setEditImages] = useState<ImageRow[]>([]);
+  // Orders
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
 
-  // telegram bot + channels
-  const [tgBot, setTgBot] = useState<{ bot_username: string; status: string } | null>(null);
-  const [tgBotLoaded, setTgBotLoaded] = useState(false);
-  const [tgToken, setTgToken] = useState('');
+  // Payouts
+  const [payoutSummary, setPayoutSummary] = useState<PayoutSummary | null>(null);
+  const [payoutsLoading, setPayoutsLoading] = useState(true);
+
+  // Affiliates (seller view - products with affiliate enabled)
+  const [affiliateProducts, setAffiliateProducts] = useState<Product[]>([]);
+  const [affiliateLoading, setAffiliateLoading] = useState(true);
+
+  // Telegram
+  const [tgBot, setTgBot] = useState<TgBot | null>(null);
+  const [tgChannels, setTgChannels] = useState<TgChannel[]>([]);
   const [tgBotBusy, setTgBotBusy] = useState(false);
   const [tgBotError, setTgBotError] = useState<string | null>(null);
-  const [tgChannels, setTgChannels] = useState<{ id: string; channel_id: string; channel_title: string; auto_post: number }[]>([]);
-  const [tgChanInput, setTgChanInput] = useState('');
+  const [tgToken, setTgToken] = useState('');
   const [tgChanBusy, setTgChanBusy] = useState(false);
   const [tgChanError, setTgChanError] = useState<string | null>(null);
+  const [tgChanInput, setTgChanInput] = useState('');
 
-  async function loadTelegram() {
-    try {
-      const br = await fetch('/api/seller/bot', { cache: 'no-store' });
-      if (br.ok) setTgBot((await br.json()).bot);
-      const cr = await fetch('/api/seller/channel', { cache: 'no-store' });
-      if (cr.ok) setTgChannels((await cr.json()).channels || []);
-    } catch { /* offline — keep empty */ }
-    setTgBotLoaded(true);
-  }
+  // Settings
+  const [settings, setSettings] = useState<StoreSettings>({ name: '', bio: '', payout: '' });
+  const [socials, setSocials] = useState<SocialLinks>({ website: '', telegram: '', x: '', instagram: '', youtube: '' });
+  const [settingsBusy, setSettingsBusy] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (tab === 'telegram' && !tgBotLoaded) loadTelegram();
-  }, [tab, tgBotLoaded]);
+  // Product editing
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [edit, setEdit] = useState<Partial<Product> & { price?: number; stockLimited?: boolean; stockLimit?: string; licenseKeys?: boolean; affiliateEnabled?: boolean; affiliateCommission?: number; videoUrl?: string; images?: ProductImage[]; files?: ProductFile[]; licenses?: LicenseKey[]; discounts?: DiscountCode[] }>({});
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editImages, setEditImages] = useState<ProductImage[]>([]);
+  const [editFiles, setEditFiles] = useState<ProductFile[]>([]);
+  const [editLicenses, setEditLicenses] = useState<LicenseKey[]>([]);
+  const [editDiscounts, setEditDiscounts] = useState<DiscountCode[]>([]);
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
-  async function connectBot(e: FormEvent) {
-    e.preventDefault();
-    setTgBotBusy(true);
-    setTgBotError(null);
-    try {
-      const r = await fetch('/api/seller/bot', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ token: tgToken }),
-      });
-      const j = await r.json();
-      if (!r.ok) {
-        const msgs: Record<string, string> = {
-          'bad-token': 'That does not look like a bot token. Copy it from BotFather.',
-          'invalid-token': 'Telegram rejected this token. Check it and try again.',
-          'telegram-unreachable': 'Could not reach Telegram. Try again in a moment.',
-          'telegram-verification-required': 'Verify your Telegram account first.',
-        };
-        setTgBotError(msgs[j.error] || 'Could not connect the bot.');
-      } else {
-        setTgBot({ bot_username: j.username || '', status: 'active' });
-        setTgToken('');
-        setNotice(j.username ? `Connected @${j.username}.` : 'Bot connected.');
-      }
-    } catch {
-      setTgBotError('Network error. Try again.');
-    }
-    setTgBotBusy(false);
-  }
-
-  async function disconnectBot() {
-    if (!confirm('Disconnect your Telegram bot? Auto-posting will stop.')) return;
-    await fetch('/api/seller/bot', { method: 'DELETE' });
-    setTgBot(null);
-    setTgChannels([]);
-  }
-
-  async function linkChannel(e: FormEvent) {
-    e.preventDefault();
-    setTgChanBusy(true);
-    setTgChanError(null);
-    try {
-      const r = await fetch('/api/seller/channel', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ channel_id: tgChanInput }),
-      });
-      const j = await r.json();
-      if (!r.ok) {
-        const msgs: Record<string, string> = {
-          'no-bot': 'Connect your bot first.',
-          'bot-not-admin': 'Your bot must be an admin of that channel with post permission. Add it as admin, then try again.',
-          'bad-channel': 'Enter a channel username (@name) or ID.',
-          'telegram-unreachable': 'Could not reach Telegram. Try again in a moment.',
-        };
-        setTgChanError(msgs[j.error] || 'Could not link the channel.');
-      } else {
-        setTgChanInput('');
-        setTgBotLoaded(false);
-        setNotice('Channel linked. New products will auto-post there.');
-      }
-    } catch {
-      setTgChanError('Network error. Try again.');
-    }
-    setTgChanBusy(false);
-  }
-
-  async function unlinkChannel(channelId: string) {
-    await fetch('/api/seller/channel', {
-      method: 'DELETE',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ channel_id: channelId }),
-    });
-    setTgChannels((cs) => cs.filter((c) => c.channel_id !== channelId));
-  }
-  const [editLicenses, setEditLicenses] = useState<LicenseRow[]>([]);
-  const [editDiscounts, setEditDiscounts] = useState<DiscountRow[]>([]);
+  // Discount code form
   const [dcCode, setDcCode] = useState('');
   const [dcKind, setDcKind] = useState<'percent' | 'fixed'>('percent');
   const [dcValue, setDcValue] = useState('');
   const [dcMaxUses, setDcMaxUses] = useState('');
   const [dcBusy, setDcBusy] = useState(false);
   const [dcError, setDcError] = useState<string | null>(null);
-  const [editBusy, setEditBusy] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
-  const [uploadBusy, setUploadBusy] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [imageBusy, setImageBusy] = useState(false);
-  const [imageError, setImageError] = useState<string | null>(null);
 
-  // store settings
-  const [settings, setSettings] = useState({ name: '', bio: '', payout: '' });
-  const [socials, setSocials] = useState({ website: '', x: '', instagram: '', youtube: '', telegram: '' });
-  const [settingsBusy, setSettingsBusy] = useState(false);
-  const [settingsError, setSettingsError] = useState<string | null>(null);
-
-  const reload = useCallback(async () => {
-    const meRes = await fetch('/api/me', { cache: 'no-store' });
-    if (!meRes.ok) {
-      router.replace('/auth');
-      return;
-    }
-    const meJson = (await meRes.json()) as { user: Me };
-    setMe(meJson.user);
-    if (!meJson.user.hasStore || !meJson.user.storeSlug) {
-      setPhase('no-store');
-      return;
-    }
-    const [pRes, oRes, sRes] = await Promise.all([
-      fetch('/api/products?mine=1', { cache: 'no-store' }),
-      fetch('/api/orders', { cache: 'no-store' }),
-      fetch(`/api/stores/${encodeURIComponent(meJson.user.storeSlug)}`, { cache: 'no-store' }),
-    ]);
-    if (pRes.ok) setProducts(((await pRes.json()) as { products: ProductRow[] }).products ?? []);
-    if (oRes.ok) setOrders(((await oRes.json()) as { orders: OrderRow[] }).orders ?? []);
-    if (sRes.ok) {
-      const s = ((await sRes.json()) as { store: StoreRow }).store;
-      setSettings({ name: s.name, bio: s.bio, payout: s.payout_usdt_address });
-      try {
-        const parsed = JSON.parse(s.socials || '{}') as Record<string, string>;
-        setSocials({
-          website: parsed.website || '',
-          x: parsed.x || '',
-          instagram: parsed.instagram || '',
-          youtube: parsed.youtube || '',
-          telegram: parsed.telegram || '',
-        });
-      } catch {
-        /* keep defaults */
+  const fetchMe = useCallback(async () => {
+    try {
+      const res = await fetch('/api/me');
+      if (res.ok) {
+        const data = await res.json();
+        setMe(data.user);
       }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingMe(false);
     }
-    setPhase('ready');
-  }, [router]);
+  }, []);
+
+  const fetchProducts = useCallback(async () => {
+    setProductsLoading(true);
+    setProductsError(null);
+    try {
+      const res = await fetch('/api/products?mine=1');
+      if (res.ok) {
+        const data = await res.json();
+        setProducts(data.products || []);
+      } else {
+        setProductsError('Failed to load products');
+      }
+    } catch {
+      setProductsError('Failed to load products');
+    } finally {
+      setProductsLoading(false);
+    }
+  }, []);
+
+  const fetchOrders = useCallback(async () => {
+    setOrdersLoading(true);
+    try {
+      const res = await fetch('/api/orders');
+      if (res.ok) {
+        const data = await res.json();
+        setOrders(data.orders || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
+  const fetchPayoutSummary = useCallback(async () => {
+    setPayoutsLoading(true);
+    try {
+      const [ordersRes, meRes] = await Promise.all([
+        fetch('/api/orders'),
+        fetch('/api/me'),
+      ]);
+      if (ordersRes.ok && meRes.ok) {
+        const ordersData = await ordersRes.json();
+        const meData = await meRes.json();
+        const paidOrders = (ordersData.orders || []).filter((o: Order) => o.status === 'paid');
+        const totalEarned = paidOrders.reduce((sum: number, o: Order) => sum + o.seller_usd, 0);
+        const payoutAddress = meData.user?.store?.payout_usdt_address || '';
+        setPayoutSummary({
+          totalEarned,
+          totalPaidOut: 0,
+          pendingBalance: totalEarned,
+          nextPayoutDate: null,
+          payoutAddress,
+        });
+      }
+    } catch {
+      // ignore
+    } finally {
+      setPayoutsLoading(false);
+    }
+  }, []);
+
+  const fetchAffiliateProducts = useCallback(async () => {
+    setAffiliateLoading(true);
+    try {
+      const res = await fetch('/api/products?mine=1&status=published');
+      if (res.ok) {
+        const data = await res.json();
+        const withAffiliate = (data.products || []).filter((p: Product) => p.affiliate_enabled === 1);
+        setAffiliateProducts(withAffiliate);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setAffiliateLoading(false);
+    }
+  }, []);
+
+  const fetchTelegram = useCallback(async () => {
+    try {
+      const [botRes, channelsRes] = await Promise.all([
+        fetch('/api/bot/status'),
+        fetch('/api/bot/channels'),
+      ]);
+      if (botRes.ok) {
+        const data = await botRes.json();
+        setTgBot(data.bot);
+      }
+      if (channelsRes.ok) {
+        const data = await channelsRes.json();
+        setTgChannels(data.channels || []);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/api/me');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user?.store) {
+          setSettings({
+            name: data.user.store.name || '',
+            bio: data.user.store.bio || '',
+            payout: data.user.store.payout_usdt_address || '',
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    fetchMe();
+  }, [fetchMe]);
 
-  function flash(msg: string) {
-    setNotice(msg);
-    window.setTimeout(() => setNotice(null), 4000);
-  }
+  useEffect(() => {
+    if (me) {
+      fetchProducts();
+      fetchOrders();
+      fetchPayoutSummary();
+      fetchAffiliateProducts();
+      fetchTelegram();
+      fetchSettings();
+    }
+  }, [me, fetchProducts, fetchOrders, fetchPayoutSummary, fetchAffiliateProducts, fetchTelegram, fetchSettings]);
 
-  async function createStore(e: FormEvent) {
-    e.preventDefault();
-    setStoreError(null);
-    if (storeName.trim().length < 2) {
-      setStoreError('Give your store a name — at least 2 characters.');
-      return;
-    }
-    setStoreBusy(true);
-    try {
-      const res = await fetch('/api/stores', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: storeName.trim(), bio: storeBio.trim() }),
-      });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) {
-        setStoreError(
-          res.status === 409
-            ? 'You already have a store.'
-            : data.error === 'telegram-verification-required'
-              ? 'Verify with Telegram first — then you can open your store.'
-              : data.error || 'Could not create the store.'
-        );
-        return;
-      }
-      haptic('success');
-      await reload();
-    } catch {
-      setStoreError('Network error. Try again.');
-    } finally {
-      setStoreBusy(false);
-    }
-  }
-
-  async function createProduct(e: FormEvent) {
-    e.preventDefault();
-    setNpError(null);
-    const price = Number(np.price);
-    if (np.title.trim().length < 3) {
-      setNpError('Give your product a title — at least 3 characters.');
-      return;
-    }
-    if (!Number.isFinite(price) || price <= 0) {
-      setNpError('Enter a price above $0.');
-      return;
-    }
-    if (!isCategory(np.category)) {
-      setNpError('Pick a category.');
-      return;
-    }
-    setNpBusy(true);
+  // Product actions
+  const createProduct = async () => {
     try {
       const res = await fetch('/api/products', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: np.title.trim(),
-          description: np.description.trim(),
-          price,
-          category: np.category,
-          tags: np.tags.trim(),
-          videoUrl: np.videoUrl.trim(),
-          status: np.status === 'published' ? 'published' : 'draft',
-          stockLimit: np.stockLimited && np.stockLimit.trim() !== '' ? Number(np.stockLimit) : null,
-          licenseKeys: np.licenseKeys,
-          affiliateEnabled: np.affiliateEnabled,
-          affiliateCommission: np.affiliateCommission,
+          title: 'Untitled product',
+          description: '',
+          price_usd: 0,
+          category: CATEGORIES[0],
+          status: 'draft',
         }),
       });
-      const data = (await res.json()) as { error?: string; product?: ProductRow };
-      if (!res.ok || !data.product) {
-        setNpError(
-          data.error === 'telegram-verification-required'
-            ? 'Verify with Telegram first — then you can list products.'
-            : data.error === 'invalid-video-url'
-              ? 'That YouTube link doesn’t look right — paste a normal youtube.com or youtu.be URL.'
-              : data.error === 'invalid-stock-limit'
-                ? 'The buyer limit must be a whole number above 0.'
-                : data.error === 'duplicate-product'
-                  ? 'This product is already listed on Digitalsale — duplicate listings are not allowed.'
-                  : data.error || 'Could not create the product.'
-        );
-        return;
+      if (res.ok) {
+        const data = await res.json();
+        setEditingId(data.product.id);
+        fetchProducts();
       }
-      haptic('success');
-      setNp({ title: '', description: '', price: '', category: 'Presets', tags: '', videoUrl: '', status: 'draft', stockLimited: false, stockLimit: '', licenseKeys: false, affiliateEnabled: false, affiliateCommission: 20 });
-      flash(`“${data.product.title}” created as ${data.product.status}.`);
-      await reload();
     } catch {
-      setNpError('Network error. Try again.');
-    } finally {
-      setNpBusy(false);
+      // ignore
     }
-  }
+  };
 
-  async function startEdit(p: ProductRow) {
-    setEditingId(p.id);
-    setEditError(null);
-    setUploadError(null);
+  const deleteProduct = async (id: string) => {
+    if (!confirm('Delete this product? Buyers who purchased it keep access.')) return;
     try {
-      const res = await fetch(`/api/products/${p.id}`, { cache: 'no-store' });
-      if (!res.ok) {
-        setEditError('Could not load the product.');
-        return;
+      const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchProducts();
+        if (editingId === id) setEditingId(null);
       }
-      const data = (await res.json()) as { product: ProductRow & { files?: FileRow[]; images?: ImageRow[] } };
-      setEdit({
-        title: data.product.title,
-        description: data.product.description,
-        price: String(data.product.price_usd / 100),
-        category: data.product.category,
-        tags: data.product.tags,
-        videoUrl: data.product.video_url ?? '',
-        status: data.product.status,
-        stockLimited: data.product.stock_limit !== null && data.product.stock_limit !== undefined,
-        stockLimit: data.product.stock_limit != null ? String(data.product.stock_limit) : '',
-        licenseKeys: data.product.license_keys === 1,
-        affiliateEnabled: data.product.affiliate_enabled === 1,
-        affiliateCommission: data.product.affiliate_commission ?? 20,
-      });
-      setEditFiles(data.product.files ?? []);
-      setEditImages(data.product.images ?? []);
-      // v10: license keys for this product.
-      try {
-        const lr = await fetch(`/api/products/${p.id}/licenses`, { cache: 'no-store' });
-        if (lr.ok) {
-          const ldata = (await lr.json()) as { keys: LicenseRow[] };
-          setEditLicenses(ldata.keys ?? []);
-        } else {
-          setEditLicenses([]);
-        }
-      } catch {
-        setEditLicenses([]);
-      }
-      // v11: discount codes for this product.
-      try {
-        const dr = await fetch(`/api/products/${p.id}/discounts`, { cache: 'no-store' });
-        if (dr.ok) {
-          const ddata = (await dr.json()) as { codes: DiscountRow[] };
-          setEditDiscounts(ddata.codes ?? []);
-        } else {
-          setEditDiscounts([]);
-        }
-      } catch {
-        setEditDiscounts([]);
-      }
-      setDcCode('');
-      setDcValue('');
-      setDcMaxUses('');
-      setDcError(null);
     } catch {
-      setEditError('Network error.');
+      // ignore
     }
-  }
+  };
 
-  async function saveEdit(e: FormEvent) {
+  const toggleStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'published' ? 'draft' : 'published';
+    try {
+      const res = await fetch(`/api/products/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) fetchProducts();
+    } catch {
+      // ignore
+    }
+  };
+
+  const startEdit = (p: Product) => {
+    setEditingId(p.id);
+    setEdit({
+      title: p.title,
+      description: p.description,
+      price: p.price_usd,
+      category: p.category,
+      tags: p.tags,
+      status: p.status,
+      stockLimited: !!p.stock_limit,
+      stockLimit: p.stock_limit?.toString() || '',
+      licenseKeys: !!p.license_keys,
+      affiliateEnabled: !!p.affiliate_enabled,
+      affiliateCommission: p.affiliate_commission || 20,
+      videoUrl: p.video_url || '',
+    });
+    fetchProductImages(p.id);
+    fetchProductFiles(p.id);
+    fetchLicenses(p.id);
+    fetchDiscounts(p.id);
+  };
+
+  const fetchProductImages = async (id: string) => {
+    try {
+      const res = await fetch(`/api/products/${id}/images`);
+      if (res.ok) {
+        const data = await res.json();
+        setEditImages(data.images || []);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const fetchProductFiles = async (id: string) => {
+    try {
+      const res = await fetch(`/api/products/${id}/files`);
+      if (res.ok) {
+        const data = await res.json();
+        setEditFiles(data.files || []);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const fetchLicenses = async (id: string) => {
+    try {
+      const res = await fetch(`/api/products/${id}/licenses`);
+      if (res.ok) {
+        const data = await res.json();
+        setEditLicenses(data.licenses || []);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const fetchDiscounts = async (id: string) => {
+    try {
+      const res = await fetch(`/api/products/${id}/discounts`);
+      if (res.ok) {
+        const data = await res.json();
+        setEditDiscounts(data.discounts || []);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const saveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingId) return;
-    setEditError(null);
-    const price = Number(edit.price);
-    if (edit.title.trim().length < 3) {
-      setEditError('Title needs at least 3 characters.');
-      return;
-    }
-    if (!Number.isFinite(price) || price <= 0) {
-      setEditError('Enter a price above $0.');
-      return;
-    }
-    if (!isCategory(edit.category)) {
-      setEditError('Pick a category.');
-      return;
-    }
     setEditBusy(true);
+    setEditError(null);
     try {
       const res = await fetch(`/api/products/${editingId}`, {
         method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: edit.title.trim(),
-          description: edit.description.trim(),
-          price,
+          title: edit.title,
+          description: edit.description,
+          price_usd: Number(edit.price),
           category: edit.category,
-          tags: edit.tags.trim(),
-          videoUrl: edit.videoUrl.trim(),
+          tags: edit.tags,
           status: edit.status,
-          stockLimit: edit.stockLimited && edit.stockLimit.trim() !== '' ? Number(edit.stockLimit) : null,
-          licenseKeys: edit.licenseKeys,
-          affiliateEnabled: edit.affiliateEnabled,
-          affiliateCommission: edit.affiliateCommission,
+          stock_limit: edit.stockLimited ? Number(edit.stockLimit) : null,
+          license_keys: edit.licenseKeys ? 1 : 0,
+          affiliate_enabled: edit.affiliateEnabled ? 1 : 0,
+          affiliate_commission: edit.affiliateEnabled ? Number(edit.affiliateCommission) : null,
+          video_url: edit.videoUrl,
         }),
       });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) {
-        setEditError(
-          data.error === 'telegram-verification-required'
-            ? 'Verify with Telegram first — then you can edit products.'
-            : data.error === 'invalid-video-url'
-              ? 'That YouTube link doesn’t look right — paste a normal youtube.com or youtu.be URL.'
-              : data.error === 'invalid-stock-limit'
-                ? 'The buyer limit must be a whole number above 0.'
-                : data.error === 'duplicate-product'
-                  ? 'This product is already listed on Digitalsale — duplicate listings are not allowed.'
-                  : data.error || 'Could not save.'
-        );
-        return;
+      if (res.ok) {
+        fetchProducts();
+        fetchProductImages(editingId);
+        fetchProductFiles(editingId);
+      } else {
+        const data = await res.json();
+        setEditError(data.error || 'Failed to save');
       }
-      haptic('success');
-      setEditingId(null);
-      flash('Product updated.');
-      await reload();
     } catch {
-      setEditError('Network error.');
+      setEditError('Failed to save');
     } finally {
       setEditBusy(false);
     }
-  }
+  };
 
-  async function deleteProduct(p: ProductRow) {
-    if (!window.confirm(`Delete “${p.title}”? This cannot be undone.`)) return;
-    haptic('tap');
-    const res = await fetch(`/api/products/${p.id}`, { method: 'DELETE' });
-    if (res.ok || res.status === 204) {
-      haptic('success');
-      flash('Product deleted.');
-      if (editingId === p.id) setEditingId(null);
-      await reload();
-    } else {
-      flash('Could not delete the product.');
-    }
-  }
-
-  async function uploadFile(productId: string, file: File) {
-    setUploadError(null);
-    if (file.size > 100 * 1024 * 1024) {
-      setUploadError('Files are capped at 100 MB.');
-      return;
-    }
-    setUploadBusy(true);
+  const uploadImage = async (productId: string, file: File) => {
+    setImageBusy(true);
+    setImageError(null);
     try {
       const form = new FormData();
       form.append('file', file);
-      const res = await fetch(`/api/products/${productId}/files`, { method: 'POST', body: form });
-      const data = (await res.json()) as { error?: string; file?: FileRow };
-      if (!res.ok || !data.file) {
-        setUploadError(data.error || 'Upload failed.');
-        return;
+      const res = await fetch(`/api/products/${productId}/images`, {
+        method: 'POST',
+        body: form,
+      });
+      if (res.ok) {
+        fetchProductImages(productId);
+      } else {
+        const data = await res.json();
+        setImageError(data.error || 'Upload failed');
       }
-      haptic('success');
-      setEditFiles((prev) => [...prev, data.file as FileRow]);
-      flash(`“${data.file.filename}” archived and attached.`);
     } catch {
-      setUploadError('Network error during upload.');
+      setImageError('Upload failed');
+    } finally {
+      setImageBusy(false);
+    }
+  };
+
+  const deleteImage = async (productId: string, imageId: string) => {
+    try {
+      const res = await fetch(`/api/products/${productId}/images/${imageId}`, { method: 'DELETE' });
+      if (res.ok) fetchProductImages(productId);
+    } catch {
+      // ignore
+    }
+  };
+
+  const uploadFile = async (productId: string, file: File) => {
+    setUploadBusy(true);
+    setUploadError(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`/api/products/${productId}/files`, {
+        method: 'POST',
+        body: form,
+      });
+      if (res.ok) {
+        fetchProductFiles(productId);
+      } else {
+        const data = await res.json();
+        setUploadError(data.error || 'Upload failed');
+      }
+    } catch {
+      setUploadError('Upload failed');
     } finally {
       setUploadBusy(false);
     }
-  }
+  };
 
-  async function uploadImage(productId: string, file: File) {
-    setImageError(null);
-    if (!file.type.startsWith('image/')) {
-      setImageError('Please choose an image file (JPG, PNG, WebP…).');
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setImageError('Images are capped at 10 MB.');
-      return;
-    }
-    if (editImages.length >= 8) {
-      setImageError('Up to 8 pictures per product.');
-      return;
-    }
-    setImageBusy(true);
+  const revokeLicense = async (productId: string, licenseId: string) => {
     try {
-      const form = new FormData();
-      form.append('file', file);
-      const res = await fetch(`/api/products/${productId}/images`, { method: 'POST', body: form });
-      const data = (await res.json()) as { error?: string; image?: ImageRow };
-      if (!res.ok || !data.image) {
-        setImageError(data.error || 'Upload failed.');
-        return;
-      }
-      haptic('success');
-      setEditImages((prev) => [...prev, data.image as ImageRow]);
-      flash(`Picture added.`);
+      const res = await fetch(`/api/products/${productId}/licenses/${licenseId}/revoke`, { method: 'POST' });
+      if (res.ok) fetchLicenses(productId);
     } catch {
-      setImageError('Network error during upload.');
-    } finally {
-      setImageBusy(false);
+      // ignore
     }
-  }
+  };
 
-  async function deleteImage(productId: string, imageId: string) {
-    setImageError(null);
-    setImageBusy(true);
-    try {
-      const res = await fetch(`/api/products/${productId}/images?imageId=${encodeURIComponent(imageId)}`, { method: 'DELETE' });
-      if (!res.ok) {
-        setImageError('Could not delete the picture.');
-        return;
-      }
-      setEditImages((prev) => prev.filter((im) => im.id !== imageId));
-    } catch {
-      setImageError('Network error.');
-    } finally {
-      setImageBusy(false);
-    }
-  }
-
-  // v11: create + deactivate discount codes.
-  async function createDiscountCode(productId: string) {
-    setDcError(null);
-    const value = Math.floor(Number(dcValue));
-    if (!dcCode.trim()) {
-      setDcError('Give the code a name, like SAVE20.');
-      return;
-    }
-    if (!Number.isFinite(value) || value <= 0) {
-      setDcError(dcKind === 'percent' ? 'Percent must be 1–90.' : 'Amount must be at least 1 cent.');
-      return;
-    }
-    if (dcKind === 'percent' && value > 90) {
-      setDcError('Percent must be 1–90.');
-      return;
-    }
+  const createDiscountCode = async (productId: string) => {
+    if (!dcCode.trim() || !dcValue) return;
     setDcBusy(true);
+    setDcError(null);
     try {
       const res = await fetch(`/api/products/${productId}/discounts`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          code: dcCode,
+          code: dcCode.toUpperCase(),
           kind: dcKind,
-          value,
-          maxUses: dcMaxUses.trim() === '' ? null : dcMaxUses.trim(),
+          value: Number(dcValue),
+          max_uses: dcMaxUses ? Number(dcMaxUses) : null,
         }),
       });
-      const data = (await res.json()) as { error?: string; code?: DiscountRow };
-      if (!res.ok || !data.code) {
-        const why: Record<string, string> = {
-          'invalid-code': 'Use 3–24 letters, numbers or dashes.',
-          'code-taken': 'You already have a code with that name.',
-          'invalid-value': 'Check the discount value.',
-          'percent-too-high': 'Percent must be 1–90.',
-          'invalid-max-uses': 'Max uses must be at least 1.',
-        };
-        setDcError(why[data.error ?? ''] ?? 'Could not create the code.');
-        return;
+      if (res.ok) {
+        fetchDiscounts(productId);
+        setDcCode('');
+        setDcValue('');
+        setDcMaxUses('');
+      } else {
+        const data = await res.json();
+        setDcError(data.error || 'Failed to create');
       }
-      setEditDiscounts((prev) => [data.code!, ...prev]);
-      setDcCode('');
-      setDcValue('');
-      setDcMaxUses('');
-      haptic('success');
     } catch {
-      setDcError('Network error.');
+      setDcError('Failed to create');
     } finally {
       setDcBusy(false);
     }
-  }
+  };
 
-  async function deactivateDiscountCode(productId: string, discountId: string) {
+  const deactivateDiscountCode = async (productId: string, discountId: string) => {
     try {
-      const res = await fetch(`/api/products/${productId}/discounts/${discountId}/deactivate`, {
-        method: 'POST',
-      });
-      if (!res.ok) return;
-      setEditDiscounts((prev) => prev.map((d) => (d.id === discountId ? { ...d, active: 0 } : d)));
-      haptic('tap');
+      const res = await fetch(`/api/products/${productId}/discounts/${discountId}/deactivate`, { method: 'POST' });
+      if (res.ok) fetchDiscounts(productId);
     } catch {
-      /* best effort */
+      // ignore
     }
-  }
+  };
 
-  // v10: revoke a license key (buyer's software stops verifying).
-  async function revokeLicense(productId: string, licenseId: string) {
-    if (!window.confirm('Revoke this license key? The buyer\u2019s software will stop activating.')) return;
-    try {
-      const res = await fetch(`/api/products/${productId}/licenses/${licenseId}/revoke`, { method: 'POST' });
-      if (!res.ok) return;
-      setEditLicenses((prev) => prev.map((l) => (l.id === licenseId ? { ...l, status: 'revoked' } : l)));
-      haptic('success');
-    } catch {
-      /* best effort */
-    }
-  }
-
-  async function saveSettings(e: FormEvent) {
+  // Telegram actions
+  const connectBot = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!me?.storeSlug) return;
-    setSettingsError(null);
-    if (settings.name.trim().length < 2) {
-      setSettingsError('Store name needs at least 2 characters.');
-      return;
-    }
-    setSettingsBusy(true);
+    if (!tgToken.trim()) return;
+    setTgBotBusy(true);
+    setTgBotError(null);
     try {
-      const res = await fetch(`/api/stores/${encodeURIComponent(me.storeSlug)}`, {
+      const res = await fetch('/api/bot/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: tgToken.trim() }),
+      });
+      if (res.ok) {
+        setTgToken('');
+        fetchTelegram();
+      } else {
+        const data = await res.json();
+        setTgBotError(data.error || 'Failed to connect');
+      }
+    } catch {
+      setTgBotError('Failed to connect');
+    } finally {
+      setTgBotBusy(false);
+    }
+  };
+
+  const disconnectBot = async () => {
+    if (!confirm('Disconnect your bot? Auto-posting and buyer notifications will stop.')) return;
+    try {
+      const res = await fetch('/api/bot/disconnect', { method: 'POST' });
+      if (res.ok) fetchTelegram();
+    } catch {
+      // ignore
+    }
+  };
+
+  const linkChannel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tgChanInput.trim()) return;
+    setTgChanBusy(true);
+    setTgChanError(null);
+    try {
+      const res = await fetch('/api/bot/channels', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: tgChanInput.trim() }),
+      });
+      if (res.ok) {
+        setTgChanInput('');
+        fetchTelegram();
+      } else {
+        const data = await res.json();
+        setTgChanError(data.error || 'Failed to link');
+      }
+    } catch {
+      setTgChanError('Failed to link');
+    } finally {
+      setTgChanBusy(false);
+    }
+  };
+
+  const unlinkChannel = async (channelId: string) => {
+    try {
+      const res = await fetch(`/api/bot/channels/${channelId}`, { method: 'DELETE' });
+      if (res.ok) fetchTelegram();
+    } catch {
+      // ignore
+    }
+  };
+
+  // Settings actions
+  const saveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSettingsBusy(true);
+    setSettingsError(null);
+    try {
+      const res = await fetch('/api/stores', {
         method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: settings.name.trim(),
-          bio: settings.bio.trim(),
-          payout_usdt_address: settings.payout.trim(),
+          name: settings.name,
+          bio: settings.bio,
+          payout_usdt_address: settings.payout,
           socials,
         }),
       });
-      const data = (await res.json()) as { error?: string; store?: StoreRow };
-      if (!res.ok || !data.store) {
-        setSettingsError(data.error || 'Could not save settings.');
-        return;
+      if (res.ok) {
+        fetchMe();
+      } else {
+        const data = await res.json();
+        setSettingsError(data.error || 'Failed to save');
       }
-      haptic('success');
-      setSettings({ name: data.store.name, bio: data.store.bio, payout: data.store.payout_usdt_address });
-      flash('Store settings saved.');
-      await reload();
     } catch {
-      setSettingsError('Network error.');
+      setSettingsError('Failed to save');
     } finally {
       setSettingsBusy(false);
     }
-  }
+  };
 
-  async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.replace('/');
-    router.refresh();
-  }
+  const copyStoreLink = () => {
+    if (me?.storeSlug) {
+      navigator.clipboard.writeText(`${window.location.origin}/store/${me.storeSlug}`);
+    }
+  };
 
-  if (phase === 'loading') {
-    return (
-      <div className="wrap" style={{ padding: '88px 24px' }}>
-        <div className="skeleton" style={{ height: 44, width: 280, marginBottom: 24 }} />
-        <div className="skeleton" style={{ height: 180 }} />
+  // Render helpers
+  const renderTabContent = () => {
+    switch (tab) {
+      case 'overview':
+        return renderOverview();
+      case 'products':
+        return renderProducts();
+      case 'orders':
+        return renderOrders();
+      case 'payouts':
+        return renderPayouts();
+      case 'affiliates':
+        return renderAffiliates();
+      case 'telegram':
+        return renderTelegram();
+      case 'settings':
+        return renderSettings();
+    }
+  };
+
+  const renderOverview = () => (
+    <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240, 1fr))', gap: 16 }}>
+      <StatCard
+        icon={<BarChartGlyph />}
+        label="Total products"
+        value={products.length}
+      />
+      <StatCard
+        icon={<PackageGlyph />}
+        label="Published"
+        value={products.filter(p => p.status === 'published').length}
+      />
+      <StatCard
+        icon={<ReceiptGlyph />}
+        label="Total orders"
+        value={orders.length}
+      />
+      <StatCard
+        icon={<CreditCardGlyph />}
+        label="Earnings (paid)"
+        value={formatUsd(orders.filter(o => o.status === 'paid').reduce((sum, o) => sum + o.seller_usd, 0))}
+      />
+      <StatCard
+        icon={<UsersGlyph />}
+        label="Affiliate products"
+        value={affiliateProducts.length}
+      />
+      <StatCard
+        icon={<SendGlyph />}
+        label="Telegram connected"
+        value={tgBot?.status === 'active' ? 'Yes' : 'No'}
+      />
+    </div>
+  );
+
+  const renderProducts = () => (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+        <h3>Your products</h3>
+        <button className="btn btn-dark" onClick={createProduct}>
+          <PlusGlyph /> New product
+        </button>
       </div>
-    );
-  }
-
-  if (phase === 'no-store') {
-    return (
-      <div className="wrap" style={{ padding: '88px 24px', maxWidth: 640 }}>
-        <span className="eyebrow">Seller dashboard</span>
-        <h1>Open your store</h1>
-        {me && !me.telegramVerified && <VerifyBanner />}
-        <p style={{ color: 'var(--muted)' }}>
-          Hi {me?.name?.split(' ')[0] ?? 'there'} — one more step. Name your store and you can start
-          listing products right away.
-        </p>
-        <form onSubmit={createStore} className="form-card" style={{ marginTop: 24 }} noValidate>
-          <div className="field">
-            <label htmlFor="store-name">Store name</label>
-            <input
-              id="store-name"
-              className="input"
-              placeholder="Fern & Field"
-              value={storeName}
-              onChange={(e) => setStoreName(e.target.value)}
-              disabled={storeBusy}
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="store-bio">Short bio</label>
-            <textarea
-              id="store-bio"
-              className="textarea"
-              placeholder="What do you make? One or two sentences."
-              value={storeBio}
-              onChange={(e) => setStoreBio(e.target.value)}
-              disabled={storeBusy}
-            />
-          </div>
-          {storeError && <div className="form-error" role="alert">{storeError}</div>}
-          <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={storeBusy}>
-            {storeBusy ? 'Opening your store…' : 'Open my store'}
-          </button>
-        </form>
-        <p style={{ marginTop: 20, fontSize: 14 }}>
-          <Link href="/dashboard/purchases">View my purchases</Link>
-          {' · '}
-          <button type="button" onClick={logout} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--moss)', cursor: 'pointer', fontSize: 14 }}>
-            Log out
-          </button>
-        </p>
-      </div>
-    );
-  }
-
-  const paid = orders.filter((o) => o.status === 'paid');
-  const revenue = paid.reduce((s, o) => s + o.seller_usd, 0);
-  const feePaid = paid.reduce((s, o) => s + o.fee_usd, 0);
-  const recent = orders.slice(0, 5);
-  const editing = editingId ? products.find((p) => p.id === editingId) ?? null : null;
-
-  return (
-    <div className="dash">
-      {me && !me.telegramVerified && (
-        <div style={{ padding: '16px 24px 0' }}>
-          <VerifyBanner />
+      {productsLoading ? (
+        <div className="skeleton-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280, 1fr))' }}>
+          {[1, 2, 3, 4].map(i => <ProductSkeleton key={i} />)}
+        </div>
+      ) : products.length === 0 ? (
+        <EmptyState
+          glyph={<PackageGlyph />}
+          title="No products yet"
+          body="Create your first digital product — ebooks, software, courses, templates, anything you can deliver as a file."
+        />
+      ) : (
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280, 1fr))', gap: 16 }}>
+          {products.map(p => (
+            <ProductRow key={p.id} product={p} onEdit={() => startEdit(p)} onDelete={() => deleteProduct(p.id)} onToggle={() => toggleStatus(p.id, p.status)} />
+          ))}
         </div>
       )}
-      <aside className="dash-side">
-        <nav aria-label="Dashboard">
-          {TABS.map((t) => (
-            <a
-              key={t.id}
-              href="#"
-              className={tab === t.id ? 'active' : ''}
-              onClick={(e) => {
-                e.preventDefault();
-                haptic('tap');
-                setTab(t.id);
-              }}
-            >
-              {t.label}
-            </a>
-          ))}
-          <Link href="/dashboard/purchases" style={{ marginTop: 12 }}>
-            My purchases
-          </Link>
-          {me?.storeSlug && (
-            <Link href={`/store/${me.storeSlug}`}>View my store</Link>
-          )}
-        </nav>
-        <div style={{ marginTop: 32, padding: '0 16px', fontSize: 13, color: 'var(--muted)' }}>
-          <div style={{ fontWeight: 700, color: 'var(--ink)' }}>{me?.name}</div>
-          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{me?.email ?? 'Telegram account'}</div>
-          <button
-            type="button"
-            onClick={logout}
-            style={{ background: 'none', border: 'none', padding: '8px 0 0', color: 'var(--muted)', cursor: 'pointer', fontSize: 13 }}
-          >
-            Log out
-          </button>
+    </div>
+  );
+
+  const renderOrders = () => (
+    <div className="panel">
+      <h3>All orders</h3>
+      {ordersLoading ? (
+        <div className="skeleton-table">
+          {[1, 2, 3, 4, 5].map(i => <OrderSkeleton key={i} />)}
         </div>
-      </aside>
-      <div className="dash-main">
-        <h1 style={{ marginBottom: 4 }}>Seller dashboard</h1>
-        <p style={{ color: 'var(--muted)', marginTop: 0 }}>
-          {me?.storeSlug ? (
-            <>
-              Selling as <Link href={`/store/${me.storeSlug}`}><strong>{products[0]?.store_name ?? me.storeSlug}</strong></Link>
-            </>
-          ) : null}
-        </p>
-        {notice && <div className="alert alert-info" role="status">{notice}</div>}
+      ) : orders.length === 0 ? (
+        <EmptyState
+          glyph={<ReceiptGlyph />}
+          title="No orders yet"
+          body="When someone buys from your store, the order — and your 90% share — shows up here."
+        />
+      ) : (
+        <div className="table-wrap">
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Product</th>
+                <th>Buyer</th>
+                <th>Total</th>
+                <th>Your share</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map(o => (
+                <tr key={o.id}>
+                  <td><code>{shortId(o.id)}</code></td>
+                  <td>{o.product_title}</td>
+                  <td>{o.buyer_email || '—'}</td>
+                  <td>{formatUsd(o.amount_usd)}</td>
+                  <td><strong>{formatUsd(o.seller_usd)}</strong></td>
+                  <td><span className={`chip badge-${o.status}`}>{o.status}</span></td>
+                  <td>{timeAgo(o.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 
-        {tab === 'overview' && (
-          <div>
-            <div className="stat-grid">
-              <div className="stat-card">
-                <div className="label">Revenue</div>
-                <div className="value">{formatUsd(revenue)}</div>
-                <div className="sub">your 90% share, paid orders</div>
-              </div>
-              <div className="stat-card">
-                <div className="label">Orders</div>
-                <div className="value">{orders.length}</div>
-                <div className="sub">{paid.length} paid</div>
-              </div>
-              <div className="stat-card">
-                <div className="label">Products</div>
-                <div className="value">{products.length}</div>
-                <div className="sub">{products.filter((p) => p.status === 'published').length} published</div>
-              </div>
-              <div className="stat-card">
-                <div className="label">Platform fees paid</div>
-                <div className="value">{formatUsd(feePaid)}</div>
-                <div className="sub">flat 10% on paid orders</div>
-              </div>
-            </div>
-            <div className="panel">
-              <h3>Recent orders</h3>
-              {recent.length === 0 ? (
-                <EmptyState
-                  glyph={<BasketGlyph />}
-                  title="No orders yet"
-                  body="Share your store link and your first sale will land here."
-                />
-              ) : (
-                <div className="table-wrap">
-                  <table className="data">
-                    <thead>
-                      <tr><th>Order</th><th>Product</th><th>Buyer</th><th>Your share</th><th>Status</th></tr>
-                    </thead>
-                    <tbody>
-                      {recent.map((o) => (
-                        <tr key={o.id}>
-                          <td><code>{shortId(o.id)}</code></td>
-                          <td>{o.product_title}</td>
-                          <td>{o.buyer_email || '—'}</td>
-                          <td>{formatUsd(o.seller_usd)}</td>
-                          <td><span className={`chip badge-${o.status}`}>{o.status}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
+  const renderPayouts = () => (
+    <div>
+      {payoutsLoading ? (
+        <div className="skeleton-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200, 1fr))' }}>
+          {[1, 2, 3, 4].map(i => <StatCardSkeleton key={i} />)}
+        </div>
+      ) : (
+        <>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200, 1fr))', gap: 16, marginBottom: 24 }}>
+            <StatCard
+              icon={<WalletGlyph />}
+              label="Total earned"
+              value={payoutSummary ? formatUsd(payoutSummary.totalEarned) : '$0.00'}
+            />
+            <StatCard
+              icon={<CreditCardGlyph />}
+              label="Paid out"
+              value={payoutSummary ? formatUsd(payoutSummary.totalPaidOut) : '$0.00'}
+            />
+            <StatCard
+              icon={<BarChartGlyph />}
+              label="Pending balance"
+              value={payoutSummary ? formatUsd(payoutSummary.pendingBalance) : '$0.00'}
+              highlight
+            />
+            <StatCard
+              icon={<InfoGlyph />}
+              label="Next payout"
+              value={payoutSummary?.nextPayoutDate ? timeAgo(payoutSummary.nextPayoutDate) : 'Not scheduled'}
+            />
           </div>
-        )}
 
-        {tab === 'products' && (
-          <div>
-            <div className="panel">
-              <h3>New product</h3>
-              <form onSubmit={createProduct} noValidate>
-                <div className="field">
-                  <label htmlFor="np-title">Title</label>
-                  <input id="np-title" className="input" value={np.title} onChange={(e) => setNp({ ...np, title: e.target.value })} disabled={npBusy} placeholder="Evergreen — 24 Lightroom Presets" />
-                </div>
-                <div className="field">
-                  <label htmlFor="np-desc">Description</label>
-                  <textarea id="np-desc" className="textarea" value={np.description} onChange={(e) => setNp({ ...np, description: e.target.value })} disabled={npBusy} placeholder="What does the buyer get? What's inside?" />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-                  <div className="field">
-                    <label htmlFor="np-price">Price (USD)</label>
-                    <input id="np-price" className="input" type="number" min="0.01" step="0.01" value={np.price} onChange={(e) => setNp({ ...np, price: e.target.value })} disabled={npBusy} placeholder="24.00" />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="np-cat">Category</label>
-                    <select id="np-cat" className="select" value={np.category} onChange={(e) => setNp({ ...np, category: e.target.value })} disabled={npBusy}>
-                      {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div className="field">
-                    <label htmlFor="np-status">Status</label>
-                    <select id="np-status" className="select" value={np.status} onChange={(e) => setNp({ ...np, status: e.target.value })} disabled={npBusy}>
-                      <option value="draft">Draft</option>
-                      <option value="published">Published</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="field">
-                  <label htmlFor="np-tags">Tags (comma-separated)</label>
-                  <input id="np-tags" className="input" value={np.tags} onChange={(e) => setNp({ ...np, tags: e.target.value })} disabled={npBusy} placeholder="lightroom, presets, moody" />
-                </div>
-                <div className="field">
-                  <label htmlFor="np-video">Demo video <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(YouTube link, optional)</span></label>
-                  <input id="np-video" className="input" type="url" value={np.videoUrl} onChange={(e) => setNp({ ...np, videoUrl: e.target.value })} disabled={npBusy} placeholder="https://www.youtube.com/watch?v=…" />
-                  <p className="hint">Paste a YouTube link — buyers can watch it right on your product page, fullscreen included.</p>
-                </div>
-                <div className="field">
-                  <label className="check-row">
-                    <input
-                      type="checkbox"
-                      checked={np.stockLimited}
-                      onChange={(e) => setNp({ ...np, stockLimited: e.target.checked })}
-                      disabled={npBusy}
-                    />
-                    <span><strong>Limit buyers</strong> <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(sell to a fixed number of people)</span></span>
-                  </label>
-                  {np.stockLimited && (
-                    <>
-                      <input
-                        id="np-stock"
-                        className="input"
-                        type="number"
-                        min={1}
-                        step={1}
-                        value={np.stockLimit}
-                        onChange={(e) => setNp({ ...np, stockLimit: e.target.value })}
-                        disabled={npBusy}
-                        placeholder="e.g. 50"
-                        style={{ marginTop: 10 }}
-                      />
-                      <p className="hint">When all spots sell out, the product unlists and shows “Sold out”. Leave the toggle off for unlimited sales.</p>
-                    </>
-                  )}
-                </div>
-                <div className="field">
-                  <label className="check-row">
-                    <input
-                      type="checkbox"
-                      checked={np.licenseKeys}
-                      onChange={(e) => setNp({ ...np, licenseKeys: e.target.checked })}
-                      disabled={npBusy}
-                    />
-                    <span><strong>License keys</strong> <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(Gumroad-style — each buyer gets a unique key)</span></span>
-                  </label>
-                  <p className="hint">For software: every paid order gets a unique license key, and your app can verify it via our API.</p>
-                </div>
-                <div className="field">
-                  <label className="check-row">
-                    <input
-                      type="checkbox"
-                      checked={np.affiliateEnabled}
-                      onChange={(e) => setNp({ ...np, affiliateEnabled: e.target.checked })}
-                      disabled={npBusy}
-                    />
-                    <span><strong>Enable affiliates</strong> — let promoters sell this for a commission</span>
-                  </label>
-                  {np.affiliateEnabled && (
-                    <div style={{ marginTop: 12 }}>
-                      <label htmlFor="np-commission">
-                        Affiliate commission: <strong>{np.affiliateCommission}%</strong> of each sale
-                      </label>
-                      <input
-                        id="np-commission"
-                        type="range"
-                        min={5}
-                        max={60}
-                        step={1}
-                        value={np.affiliateCommission}
-                        onChange={(e) => setNp({ ...np, affiliateCommission: Number(e.target.value) })}
-                        disabled={npBusy}
-                        className="range"
-                      />
-                    </div>
-                  )}
-                </div>
-                {npError && <div className="form-error" role="alert">{npError}</div>}
-                <button type="submit" className="btn btn-dark" disabled={npBusy}>
-                  {npBusy ? 'Creating…' : 'Create product'}
-                </button>
-              </form>
-            </div>
-
-            <div className="panel">
-              <h3>Your products</h3>
-              {products.length === 0 ? (
-                <EmptyState
-                  glyph={<SproutGlyph />}
-                  title="No products yet"
-                  body="Create your first product above — it takes a minute, and you can keep it as a draft until it's ready."
-                />
-              ) : (
-                <div className="table-wrap">
-                  <table className="data">
-                    <thead>
-                      <tr><th>Title</th><th>Price</th><th>Status</th><th>Affiliates</th><th>Listed</th><th></th></tr>
-                    </thead>
-                    <tbody>
-                      {products.map((p) => (
-                        <tr key={p.id}>
-                          <td>
-                            <strong>{p.title}</strong>
-                            {p.flagged === 1 && (
-                              <span className="chip badge-flagged" title="Flagged for review by our safety scan — not public, not blocking.">review</span>
-                            )}
-                          </td>
-                          <td>{formatUsd(p.price_usd)}</td>
-                          <td><span className={`chip badge-${p.status}`}>{p.status}</span>
-                            {p.stock_limit != null && (
-                              <span className="chip" title={`${p.stock_limit} buyer limit`} style={{ marginLeft: 6 }}>
-                                cap {p.stock_limit}
-                              </span>
-                            )}
-                          </td>
-                          <td>
-                            {p.affiliate_enabled === 1 ? (
-                              <span className="chip badge-aff">{p.affiliate_commission}% on</span>
-                            ) : (
-                              <span style={{ color: 'var(--muted)' }}>off</span>
-                            )}
-                          </td>
-                          <td>{timeAgo(p.created_at)}</td>
-                          <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
-                            <button type="button" className="btn btn-outline btn-sm" onClick={() => { haptic('tap'); void startEdit(p); }}>
-                              Edit
-                            </button>{' '}
-                            <button type="button" className="btn btn-outline btn-sm" onClick={() => void deleteProduct(p)}>
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {editing && (
-              <div className="panel" style={{ borderColor: 'var(--moss)' }}>
-                <h3>Editing: {editing.title}</h3>
-                <form onSubmit={saveEdit} noValidate>
-                  <div className="field">
-                    <label htmlFor="edit-title">Title</label>
-                    <input id="edit-title" className="input" value={edit.title} onChange={(e) => setEdit({ ...edit, title: e.target.value })} disabled={editBusy} />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="edit-desc">Description</label>
-                    <textarea id="edit-desc" className="textarea" value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} disabled={editBusy} />
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
-                    <div className="field">
-                      <label htmlFor="edit-price">Price (USD)</label>
-                      <input id="edit-price" className="input" type="number" min="0.01" step="0.01" value={edit.price} onChange={(e) => setEdit({ ...edit, price: e.target.value })} disabled={editBusy} />
-                    </div>
-                    <div className="field">
-                      <label htmlFor="edit-cat">Category</label>
-                      <select id="edit-cat" className="select" value={edit.category} onChange={(e) => setEdit({ ...edit, category: e.target.value })} disabled={editBusy}>
-                        {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                    </div>
-                    <div className="field">
-                      <label htmlFor="edit-status">Status</label>
-                      <select id="edit-status" className="select" value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value })} disabled={editBusy}>
-                        <option value="draft">Draft</option>
-                        <option value="published">Published</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="field">
-                    <label htmlFor="edit-tags">Tags (comma-separated)</label>
-                    <input id="edit-tags" className="input" value={edit.tags} onChange={(e) => setEdit({ ...edit, tags: e.target.value })} disabled={editBusy} />
-                  </div>
-                  <div className="field">
-                    <label htmlFor="edit-video">Demo video <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(YouTube link, optional)</span></label>
-                    <input id="edit-video" className="input" type="url" value={edit.videoUrl} onChange={(e) => setEdit({ ...edit, videoUrl: e.target.value })} disabled={editBusy} placeholder="https://www.youtube.com/watch?v=…" />
-                    <p className="hint">Paste a YouTube link — buyers can watch it right on your product page, fullscreen included. Clear the field to remove the video.</p>
-                  </div>
-                  <div className="field">
-                    <label className="check-row">
-                      <input
-                        type="checkbox"
-                        checked={edit.stockLimited}
-                        onChange={(e) => setEdit({ ...edit, stockLimited: e.target.checked })}
-                        disabled={editBusy}
-                      />
-                      <span><strong>Limit buyers</strong> <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(sell to a fixed number of people)</span></span>
-                    </label>
-                    {edit.stockLimited && (
-                      <>
-                        <input
-                          id="edit-stock"
-                          className="input"
-                          type="number"
-                          min={1}
-                          step={1}
-                          value={edit.stockLimit}
-                          onChange={(e) => setEdit({ ...edit, stockLimit: e.target.value })}
-                          disabled={editBusy}
-                          placeholder="e.g. 50"
-                          style={{ marginTop: 10 }}
-                        />
-                        <p className="hint">When all spots sell out, the product unlists and shows “Sold out”. Leave the toggle off for unlimited sales.</p>
-                      </>
-                    )}
-                  </div>
-                  <div className="field">
-                    <label className="check-row">
-                      <input
-                        type="checkbox"
-                        checked={edit.licenseKeys}
-                        onChange={(e) => setEdit({ ...edit, licenseKeys: e.target.checked })}
-                        disabled={editBusy}
-                      />
-                      <span><strong>License keys</strong> <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(Gumroad-style — each buyer gets a unique key)</span></span>
-                    </label>
-                    <p className="hint">For software: every paid order gets a unique license key, and your app can verify it via our API.</p>
-                  </div>
-                  <div className="field">
-                    <label>Pictures <span style={{ fontWeight: 400, color: 'var(--muted)' }}>({editImages.length}/8)</span></label>
-                    {editImages.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 12 }}>
-                        {editImages.map((im) => (
-                          <div key={im.id} style={{ position: 'relative', width: 96, height: 72, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--line)' }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={`/api/images/${im.id}`} alt={im.filename} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            <button
-                              type="button"
-                              aria-label={`Delete ${im.filename}`}
-                              disabled={imageBusy}
-                              onClick={() => { if (editingId) void deleteImage(editingId, im.id); }}
-                              style={{
-                                position: 'absolute', top: 4, right: 4, width: 24, height: 24,
-                                borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.65)',
-                                color: '#fff', cursor: 'pointer', fontSize: 14, lineHeight: 1,
-                              }}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      disabled={imageBusy || editImages.length >= 8}
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files ?? []);
-                        e.target.value = '';
-                        if (editingId) {
-                          for (const f of files.slice(0, 8 - editImages.length)) void uploadImage(editingId, f);
-                        }
-                      }}
-                      aria-label="Upload product pictures"
-                    />
-                    <p className="hint">JPG, PNG or WebP, up to 10 MB each. These show in a gallery on your product page.</p>
-                    {imageError && <div className="form-error" role="alert">{imageError}</div>}
-                  </div>
-                  <div className="field">
-                    <label className="check-row">
-                      <input
-                        type="checkbox"
-                        checked={edit.affiliateEnabled}
-                        onChange={(e) => setEdit({ ...edit, affiliateEnabled: e.target.checked })}
-                        disabled={editBusy}
-                      />
-                      <span><strong>Enable affiliates</strong> — let promoters sell this for a commission</span>
-                    </label>
-                    {edit.affiliateEnabled && (
-                      <div style={{ marginTop: 12 }}>
-                        <label htmlFor="edit-commission">
-                          Affiliate commission: <strong>{edit.affiliateCommission}%</strong> of each sale
-                        </label>
-                        <input
-                          id="edit-commission"
-                          type="range"
-                          min={5}
-                          max={60}
-                          step={1}
-                          value={edit.affiliateCommission}
-                          onChange={(e) => setEdit({ ...edit, affiliateCommission: Number(e.target.value) })}
-                          disabled={editBusy}
-                          className="range"
-                        />
-                      </div>
-                    )}
-                  </div>
-                  {editError && <div className="form-error" role="alert">{editError}</div>}
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    <button type="submit" className="btn btn-dark" disabled={editBusy}>
-                      {editBusy ? 'Saving…' : 'Save changes'}
-                    </button>
-                    <button type="button" className="btn btn-outline" onClick={() => setEditingId(null)}>
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-
-                <h3 style={{ marginTop: 36 }}>Files</h3>
-                {editFiles.length === 0 ? (
-                  <p style={{ color: 'var(--muted)', fontSize: 14.5 }}>
-                    No files attached yet. Buyers can only download what you attach here.
-                  </p>
-                ) : (
-                  <div className="table-wrap" style={{ marginBottom: 20 }}>
-                    <table className="data">
-                      <thead>
-                        <tr><th>Filename</th><th>Size</th><th>Archived</th></tr>
-                      </thead>
-                      <tbody>
-                        {editFiles.map((f) => (
-                          <tr key={f.id}>
-                            <td><code>{f.filename}</code></td>
-                            <td>{fmtSize(f.size)}</td>
-                            <td><span className="chip">{f.provider === 'telegram' ? 'Telegram channel' : 'Local disk'}</span></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                <div className="field" style={{ maxWidth: 480 }}>
-                  <label htmlFor="file-upload">Attach a file (max 100 MB)</label>
-                  <input
-                    id="file-upload"
-                    type="file"
-                    className="input"
-                    disabled={uploadBusy}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f && editingId) void uploadFile(editingId, f);
-                      e.target.value = '';
-                    }}
-                  />
-                  {uploadBusy && <p className="form-note" style={{ marginTop: 12 }}>Uploading and archiving…</p>}
-                  {uploadError && <div className="form-error" role="alert" style={{ marginTop: 12 }}>{uploadError}</div>}
-                </div>
-
-                <h3 style={{ marginTop: 36 }}>License keys</h3>
-                {editLicenses.length === 0 ? (
-                  <p style={{ color: 'var(--muted)', fontSize: 14.5 }}>
-                    No keys issued yet. {edit.licenseKeys ? 'Keys are created automatically with each paid order.' : 'Turn on “License keys” above and save — every paid order will get a unique key.'}
-                  </p>
-                ) : (
-                  <div className="table-wrap" style={{ marginBottom: 20 }}>
-                    <table className="data">
-                      <thead>
-                        <tr><th>Key</th><th>Status</th><th>Activations</th><th>Issued</th><th></th></tr>
-                      </thead>
-                      <tbody>
-                        {editLicenses.map((l) => (
-                          <tr key={l.id}>
-                            <td><code className="ref-code" style={{ fontSize: 13 }}>{l.license_key}</code></td>
-                            <td>
-                              <span className={`chip ${l.status === 'active' ? 'badge-published' : 'badge-suspended'}`}>
-                                {l.status}
-                              </span>
-                            </td>
-                            <td>{l.activations}{l.max_activations != null ? ` / ${l.max_activations}` : ''}</td>
-                            <td style={{ color: 'var(--muted)', fontSize: 13 }}>{timeAgo(l.created_at)}</td>
-                            <td>
-                              {l.status === 'active' && editingId && (
-                                <button
-                                  type="button"
-                                  className="btn btn-outline btn-sm"
-                                  onClick={() => void revokeLicense(editingId, l.id)}
-                                >
-                                  Revoke
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                <h3 style={{ marginTop: 36 }}>Discount codes</h3>
-                <p style={{ color: 'var(--muted)', fontSize: 14.5, marginTop: 0 }}>
-                  Promo codes buyers apply at checkout — percent off or a fixed amount off.
-                </p>
-                {editDiscounts.length > 0 && (
-                  <div className="table-wrap" style={{ marginBottom: 20 }}>
-                    <table className="data">
-                      <thead>
-                        <tr><th>Code</th><th>Discount</th><th>Uses</th><th>Status</th><th></th></tr>
-                      </thead>
-                      <tbody>
-                        {editDiscounts.map((d) => (
-                          <tr key={d.id}>
-                            <td><code className="ref-code" style={{ fontSize: 13 }}>{d.code}</code></td>
-                            <td>{d.kind === 'percent' ? `${d.value}% off` : `${formatUsd(d.value)} off`}</td>
-                            <td>{d.used_count}{d.max_uses != null ? ` / ${d.max_uses}` : ''}</td>
-                            <td>
-                              <span className={`chip ${d.active === 1 ? 'badge-published' : 'badge-suspended'}`}>
-                                {d.active === 1 ? 'active' : 'off'}
-                              </span>
-                            </td>
-                            <td>
-                              {d.active === 1 && editingId && (
-                                <button
-                                  type="button"
-                                  className="btn btn-outline btn-sm"
-                                  onClick={() => void deactivateDiscountCode(editingId, d.id)}
-                                >
-                                  Deactivate
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, maxWidth: 560 }}>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label htmlFor="dc-code">Code</label>
-                    <input
-                      id="dc-code"
-                      className="input"
-                      placeholder="SAVE20"
-                      value={dcCode}
-                      onChange={(e) => setDcCode(e.target.value.toUpperCase())}
-                      disabled={dcBusy}
-                      maxLength={24}
-                    />
-                  </div>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label htmlFor="dc-kind">Type</label>
-                    <select
-                      id="dc-kind"
-                      className="input"
-                      value={dcKind}
-                      onChange={(e) => setDcKind(e.target.value as 'percent' | 'fixed')}
-                      disabled={dcBusy}
-                    >
-                      <option value="percent">Percent %</option>
-                      <option value="fixed">Fixed amount (cents)</option>
-                    </select>
-                  </div>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label htmlFor="dc-value">{dcKind === 'percent' ? 'Percent (1–90)' : 'Cents off'}</label>
-                    <input
-                      id="dc-value"
-                      className="input"
-                      type="number"
-                      min={1}
-                      max={dcKind === 'percent' ? 90 : undefined}
-                      placeholder={dcKind === 'percent' ? '20' : '500'}
-                      value={dcValue}
-                      onChange={(e) => setDcValue(e.target.value)}
-                      disabled={dcBusy}
-                    />
-                  </div>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label htmlFor="dc-max">Max uses <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(blank = unlimited)</span></label>
-                    <input
-                      id="dc-max"
-                      className="input"
-                      type="number"
-                      min={1}
-                      placeholder="Unlimited"
-                      value={dcMaxUses}
-                      onChange={(e) => setDcMaxUses(e.target.value)}
-                      disabled={dcBusy}
-                    />
-                  </div>
-                </div>
-                {dcError && <div className="form-error" role="alert" style={{ marginTop: 12 }}>{dcError}</div>}
-                <div style={{ marginTop: 12 }}>
-                  <button
-                    type="button"
-                    className="btn btn-dark btn-sm"
-                    disabled={dcBusy || !editingId}
-                    onClick={() => { if (editingId) void createDiscountCode(editingId); }}
-                  >
-                    {dcBusy ? 'Creating…' : 'Create code'}
-                  </button>
-                </div>
-
-                <div className="panel" style={{ marginBottom: 8, marginTop: 36 }}>
-                  <h4 style={{ margin: '0 0 8px' }}>Verify keys from your app</h4>
-                  <p className="form-note" style={{ margin: '0 0 12px' }}>
-                    Call this endpoint when your software activates — it returns whether the key is valid.
-                  </p>
-                  <code className="ref-code" style={{ display: 'block', whiteSpace: 'pre-wrap', fontSize: 12.5 }}>
-{`POST /api/licenses/verify
-{ "key": "XXXX-XXXX-XXXX-XXXX", "product_id": "${editingId ?? '…'}" }
-
-→ { "valid": true, "product_id": "…", "activations": 3 }
-→ { "valid": false, "reason": "revoked" }`}
-                  </code>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {tab === 'orders' && (
           <div className="panel">
-            <h3>All orders</h3>
-            {orders.length === 0 ? (
-              <EmptyState
-                glyph={<BasketGlyph />}
-                title="No orders yet"
-                body="When someone buys from your store, the order — and your 90% share — shows up here."
+            <h3>Payout address</h3>
+            <p className="hint" style={{ marginBottom: 16 }}>
+              Your 90% share of every paid order is sent to this USDT address (TRC-20 or ERC-20).
+              <strong>Double-check it — payouts to a wrong address can't be reversed.</strong>
+            </p>
+            <div className="field">
+              <label htmlFor="payout-address">USDT address</label>
+              <input
+                id="payout-address"
+                className="input"
+                value={payoutSummary?.payoutAddress || ''}
+                readOnly
               />
-            ) : (
-              <div className="table-wrap">
-                <table className="data">
-                  <thead>
-                    <tr><th>Order</th><th>Product</th><th>Buyer</th><th>Total</th><th>Your share</th><th>Status</th><th>Date</th></tr>
-                  </thead>
-                  <tbody>
-                    {orders.map((o) => (
-                      <tr key={o.id}>
-                        <td><code>{shortId(o.id)}</code></td>
-                        <td>{o.product_title}</td>
-                        <td>{o.buyer_email || '—'}</td>
-                        <td>{formatUsd(o.amount_usd)}</td>
-                        <td><strong>{formatUsd(o.seller_usd)}</strong></td>
-                        <td><span className={`chip badge-${o.status}`}>{o.status}</span></td>
-                        <td>{timeAgo(o.created_at)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+              <p className="hint">Update this in Settings → Store settings.</p>
+            </div>
           </div>
-        )}
 
-        {tab === 'store' && (
           <div className="panel">
-            <h3>Store settings</h3>
-            <form onSubmit={saveSettings} noValidate>
-              <div className="field">
-                <label htmlFor="set-name">Store name</label>
-                <input id="set-name" className="input" value={settings.name} onChange={(e) => setSettings({ ...settings, name: e.target.value })} disabled={settingsBusy} />
-              </div>
-              <div className="field">
-                <label htmlFor="set-bio">Bio</label>
-                <textarea id="set-bio" className="textarea" value={settings.bio} onChange={(e) => setSettings({ ...settings, bio: e.target.value })} disabled={settingsBusy} />
-              </div>
-              <div className="field">
-                <label htmlFor="set-payout">USDT payout address</label>
-                <input
-                  id="set-payout"
-                  className="input"
-                  value={settings.payout}
-                  onChange={(e) => setSettings({ ...settings, payout: e.target.value })}
-                  disabled={settingsBusy}
-                  placeholder="Your TRC-20 / ERC-20 wallet address"
-                />
-                <p className="hint" style={{ fontSize: 13, color: 'var(--muted)', marginTop: 8 }}>
-                  Your 90% share of every paid order is sent here. Double-check it — payouts to a
-                  wrong address can&apos;t be reversed.
-                </p>
-              </div>
-              {settingsError && <div className="form-error" role="alert">{settingsError}</div>}
-              <button type="submit" className="btn btn-dark" disabled={settingsBusy}>
-                {settingsBusy ? 'Saving…' : 'Save settings'}
-              </button>
-            </form>
-
-            <h3 style={{ marginTop: 36 }}>Social links</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, maxWidth: 640 }}>
-              <div className="field" style={{ margin: 0 }}>
-                <label htmlFor="soc-website">Website</label>
-                <input id="soc-website" className="input" placeholder="https://…" value={socials.website} onChange={(e) => setSocials({ ...socials, website: e.target.value })} disabled={settingsBusy} />
-              </div>
-              <div className="field" style={{ margin: 0 }}>
-                <label htmlFor="soc-telegram">Telegram</label>
-                <input id="soc-telegram" className="input" placeholder="@channel" value={socials.telegram} onChange={(e) => setSocials({ ...socials, telegram: e.target.value })} disabled={settingsBusy} />
-              </div>
-              <div className="field" style={{ margin: 0 }}>
-                <label htmlFor="soc-x">X (Twitter)</label>
-                <input id="soc-x" className="input" placeholder="@handle" value={socials.x} onChange={(e) => setSocials({ ...socials, x: e.target.value })} disabled={settingsBusy} />
-              </div>
-              <div className="field" style={{ margin: 0 }}>
-                <label htmlFor="soc-instagram">Instagram</label>
-                <input id="soc-instagram" className="input" placeholder="@handle" value={socials.instagram} onChange={(e) => setSocials({ ...socials, instagram: e.target.value })} disabled={settingsBusy} />
-              </div>
-              <div className="field" style={{ margin: 0 }}>
-                <label htmlFor="soc-youtube">YouTube</label>
-                <input id="soc-youtube" className="input" placeholder="https://youtube.com/…" value={socials.youtube} onChange={(e) => setSocials({ ...socials, youtube: e.target.value })} disabled={settingsBusy} />
-              </div>
+            <h3>Payout history</h3>
+            <p className="hint" style={{ marginBottom: 16 }}>
+              Automatic payouts run weekly. Manual payouts can be requested from Settings.
+            </p>
+            <div className="table-wrap">
+              <table className="data">
+                <thead>
+                  <tr><th>Date</th><th>Amount</th><th>Status</th><th>Transaction</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: 'center', color: 'var(--muted)', padding: 24 }}>
+                      No payouts processed yet. Earnings accumulate and pay out automatically.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-            <p className="hint">Saved with the settings above. Shown on your public store page and white-label storefront.</p>
-
-            {me?.storeSlug && <StoreProfileExtras storeSlug={me.storeSlug} />}
           </div>
-        )}
+        </>
+      )}
+    </div>
+  );
 
-        {tab === 'telegram' && (
+  const renderAffiliates = () => (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+        <h3>Affiliate products</h3>
+        <span className="chip" style={{ fontSize: 14 }}>
+          {affiliateProducts.length} product{affiliateProducts.length !== 1 ? 's' : ''} with affiliates enabled
+        </span>
+      </div>
+      {affiliateLoading ? (
+        <div className="skeleton-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280, 1fr))' }}>
+          {[1, 2, 3].map(i => <ProductSkeleton key={i} />)}
+        </div>
+      ) : affiliateProducts.length === 0 ? (
+        <EmptyState
+          glyph={<UsersGlyph />}
+          title="No affiliate products"
+          body="Enable affiliates on any published product to let promoters sell it for a commission. You'll see those products listed here."
+        />
+      ) : (
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320, 1fr))', gap: 16 }}>
+          {affiliateProducts.map(p => (
+            <AffiliateProductCard key={p.id} product={p} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderTelegram = () => (
+    <div>
+      <div className="panel">
+        <h3>Your Telegram bot</h3>
+        <p className="hint" style={{ marginBottom: 16 }}>
+          Connect your own bot (from @BotFather) so Digitalsale can notify buyers and auto-post your products to your channel.
+          Your token is encrypted and never shown again.
+        </p>
+        {tgBot && tgBot.status === 'active' ? (
           <div>
-            <div className="panel">
-              <h3>Your Telegram bot</h3>
-              <p className="hint">
-                Connect your own bot (from @BotFather) so Digitalsale can notify buyers and
-                auto-post your products to your channel. Your token is encrypted and never shown again.
-              </p>
-              {tgBot && tgBot.status === 'active' ? (
-                <div>
-                  <p>
-                    Connected: <strong>{tgBot.bot_username ? `@${tgBot.bot_username}` : 'your bot'}</strong>
-                  </p>
-                  <button type="button" className="btn btn-ghost" onClick={disconnectBot}>
-                    Disconnect bot
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={connectBot} noValidate>
-                  <div className="field">
-                    <label htmlFor="tg-token">Bot token</label>
-                    <input
-                      id="tg-token"
-                      className="input"
-                      placeholder="123456:ABC-DEF…"
-                      value={tgToken}
-                      onChange={(e) => setTgToken(e.target.value)}
-                      disabled={tgBotBusy}
-                      autoComplete="off"
-                    />
-                  </div>
-                  {tgBotError && <p className="error">{tgBotError}</p>}
-                  <button type="submit" className="btn btn-primary" disabled={tgBotBusy || !tgToken.trim()}>
-                    {tgBotBusy ? 'Connecting…' : 'Connect bot'}
-                  </button>
-                  <p className="hint">
-                    Get a token: open @BotFather in Telegram → /newbot → copy the token it gives you.
-                  </p>
-                </form>
-              )}
+            <p style={{ marginBottom: 12 }}>
+              Connected: <strong>{tgBot.bot_username ? `@${tgBot.bot_username}` : 'your bot'}</strong>
+            </p>
+            <button type="button" className="btn btn-ghost" onClick={disconnectBot} disabled={tgBotBusy}>
+              Disconnect bot
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={connectBot} noValidate>
+            <div className="field">
+              <label htmlFor="tg-token">Bot token</label>
+              <input
+                id="tg-token"
+                className="input"
+                placeholder="123456:ABC-DEF…"
+                value={tgToken}
+                onChange={e => setTgToken(e.target.value)}
+                disabled={tgBotBusy}
+                autoComplete="off"
+              />
             </div>
+            {tgBotError && <div className="form-error" role="alert">{tgBotError}</div>}
+            <button type="submit" className="btn btn-primary" disabled={tgBotBusy || !tgToken.trim()}>
+              {tgBotBusy ? 'Connecting…' : 'Connect bot'}
+            </button>
+            <p className="hint" style={{ marginTop: 12 }}>
+              Get a token: open @BotFather in Telegram → /newbot → copy the token it gives you.
+            </p>
+          </form>
+        )}
+      </div>
 
-            <div className="panel">
-              <h3>Linked channels</h3>
-              <p className="hint">
-                New published products auto-post to these channels through your bot.
-                Add your bot as an <strong>admin</strong> of the channel first.
-              </p>
-              {tgChannels.length > 0 && (
-                <ul className="list">
-                  {tgChannels.map((c) => (
-                    <li key={c.id} className="list-row">
-                      <span>{c.channel_title || c.channel_id}</span>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => unlinkChannel(c.channel_id)}
-                      >
-                        Unlink
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <form onSubmit={linkChannel} noValidate>
-                <div className="field">
-                  <label htmlFor="tg-channel">Channel username or ID</label>
-                  <input
-                    id="tg-channel"
-                    className="input"
-                    placeholder="@yourchannel or -1001234567890"
-                    value={tgChanInput}
-                    onChange={(e) => setTgChanInput(e.target.value)}
-                    disabled={tgChanBusy || !tgBot}
-                  />
-                </div>
-                {tgChanError && <p className="error">{tgChanError}</p>}
-                <button type="submit" className="btn btn-primary" disabled={tgChanBusy || !tgChanInput.trim() || !tgBot}>
-                  {tgChanBusy ? 'Linking…' : 'Link channel'}
+      <div className="panel" style={{ marginTop: 16 }}>
+        <h3>Linked channels</h3>
+        <p className="hint" style={{ marginBottom: 16 }}>
+          New published products auto-post to these channels through your bot.
+          Add your bot as an <strong>admin</strong> of the channel first.
+        </p>
+        {tgChannels.length > 0 && (
+          <ul className="list">
+            {tgChannels.map(c => (
+              <li key={c.id} className="list-row">
+                <span>{c.channel_title || c.channel_id}</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => unlinkChannel(c.channel_id)}
+                  disabled={tgChanBusy}
+                >
+                  Unlink
                 </button>
-                {!tgBot && <p className="hint">Connect your bot above first.</p>}
-              </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form onSubmit={linkChannel} noValidate style={{ marginTop: 16 }}>
+          <div className="field">
+            <label htmlFor="tg-channel">Channel username or ID</label>
+            <input
+              id="tg-channel"
+              className="input"
+              placeholder="@yourchannel or -1001234567890"
+              value={tgChanInput}
+              onChange={e => setTgChanInput(e.target.value)}
+              disabled={tgChanBusy || !tgBot}
+            />
+          </div>
+          {tgChanError && <div className="form-error" role="alert">{tgChanError}</div>}
+          <button type="submit" className="btn btn-primary" disabled={tgChanBusy || !tgChanInput.trim() || !tgBot}>
+            {tgChanBusy ? 'Linking…' : 'Link channel'}
+          </button>
+          {!tgBot && <p className="hint" style={{ marginTop: 8 }}>Connect your bot above first.</p>}
+        </form>
+      </div>
+    </div>
+  );
+
+  const renderSettings = () => (
+    <div>
+      <div className="panel">
+        <h3>Store settings</h3>
+        <form onSubmit={saveSettings} noValidate>
+          <div className="field">
+            <label htmlFor="set-name">Store name</label>
+            <input
+              id="set-name"
+              className="input"
+              value={settings.name}
+              onChange={e => setSettings({ ...settings, name: e.target.value })}
+              disabled={settingsBusy}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="set-bio">Bio</label>
+            <textarea
+              id="set-bio"
+              className="textarea"
+              value={settings.bio}
+              onChange={e => setSettings({ ...settings, bio: e.target.value })}
+              disabled={settingsBusy}
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="set-payout">USDT payout address</label>
+            <input
+              id="set-payout"
+              className="input"
+              value={settings.payout}
+              onChange={e => setSettings({ ...settings, payout: e.target.value })}
+              disabled={settingsBusy}
+              placeholder="Your TRC-20 / ERC-20 wallet address"
+            />
+            <p className="hint" style={{ fontSize: 13, color: 'var(--muted)', marginTop: 8 }}>
+              Your 90% share of every paid order is sent here. Double-check it — payouts to a
+              wrong address can't be reversed.
+            </p>
+          </div>
+          {settingsError && <div className="form-error" role="alert">{settingsError}</div>}
+          <button type="submit" className="btn btn-dark" disabled={settingsBusy}>
+            {settingsBusy ? 'Saving…' : 'Save settings'}
+          </button>
+        </form>
+
+        <h3 style={{ marginTop: 36 }}>Social links</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240, 1fr))', gap: 12, maxWidth: 640 }}>
+          <div className="field" style={{ margin: 0 }}>
+            <label htmlFor="soc-website">Website</label>
+            <input
+              id="soc-website"
+              className="input"
+              placeholder="https://…"
+              value={socials.website}
+              onChange={e => setSocials({ ...socials, website: e.target.value })}
+              disabled={settingsBusy}
+            />
+          </div>
+          <div className="field" style={{ margin: 0 }}>
+            <label htmlFor="soc-telegram">Telegram</label>
+            <input
+              id="soc-telegram"
+              className="input"
+              placeholder="@channel"
+              value={socials.telegram}
+              onChange={e => setSocials({ ...socials, telegram: e.target.value })}
+              disabled={settingsBusy}
+            />
+          </div>
+          <div className="field" style={{ margin: 0 }}>
+            <label htmlFor="soc-x">X (Twitter)</label>
+            <input
+              id="soc-x"
+              className="input"
+              placeholder="@handle"
+              value={socials.x}
+              onChange={e => setSocials({ ...socials, x: e.target.value })}
+              disabled={settingsBusy}
+            />
+          </div>
+          <div className="field" style={{ margin: 0 }}>
+            <label htmlFor="soc-instagram">Instagram</label>
+            <input
+              id="soc-instagram"
+              className="input"
+              placeholder="@handle"
+              value={socials.instagram}
+              onChange={e => setSocials({ ...socials, instagram: e.target.value })}
+              disabled={settingsBusy}
+            />
+          </div>
+          <div className="field" style={{ margin: 0 }}>
+            <label htmlFor="soc-youtube">YouTube</label>
+            <input
+              id="soc-youtube"
+              className="input"
+              placeholder="https://youtube.com/…"
+              value={socials.youtube}
+              onChange={e => setSocials({ ...socials, youtube: e.target.value })}
+              disabled={settingsBusy}
+            />
+          </div>
+        </div>
+        <p className="hint" style={{ marginTop: 8 }}>
+          Saved with the settings above. Shown on your public store page and white-label storefront.
+        </p>
+
+        {me?.storeSlug && (
+          <div className="panel" style={{ marginTop: 24 }}>
+            <h3>Store profile</h3>
+            <p className="hint" style={{ marginBottom: 12 }}>
+              Your public store: <strong><a href={`${window.location.origin}/store/${me.storeSlug}`} target="_blank" rel="noopener">{`${window.location.origin}/store/${me.storeSlug}`}</a></strong>
+            </p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <button className="btn btn-dark" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/store/${me.storeSlug}`); }}>
+                <CopyGlyph /> Copy link
+              </button>
+              <a href={`${window.location.origin}/store/${me.storeSlug}`} target="_blank" rel="noopener" className="btn btn-outline">
+                <ExternalLinkGlyph /> Open store
+              </a>
+              <a href={`/s/${me.storeSlug}`} className="btn btn-outline">
+                <GlobeGlyph /> White-label
+              </a>
             </div>
           </div>
         )}
       </div>
     </div>
   );
+
+  if (loadingMe) {
+    return (
+      <div className="dashboard-shell">
+        <aside className="sidebar" aria-label="Dashboard navigation">
+          <nav>
+            <ul>
+              {TABS.map(t => (
+                <li key={t.id}>
+                  <button className={tab === t.id ? 'active' : ''} disabled>
+                    <t.icon /> {t.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </aside>
+        <main className="main" style={{ padding: 24 }}>
+          <div className="skeleton-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200, 1fr))' }}>
+            {[1, 2, 3, 4, 5, 6].map(i => <StatCardSkeleton key={i} />)}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!me) {
+    return (
+      <div className="dashboard-shell">
+        <main className="main" style={{ padding: 24, textAlign: 'center' }}>
+          <EmptyState
+            glyph={<LockGlyph />}
+            title="Please sign in"
+            body="You need to be signed in to access your seller dashboard."
+          />
+        </main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="dashboard-shell">
+      <aside className="sidebar" aria-label="Dashboard navigation">
+        <div className="sidebar-header">
+          <Link href="/dashboard" className="brand" aria-label="Dashboard home">
+            <PackageGlyph /> Sellbridge
+          </Link>
+          <button
+            className="mobile-close"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close menu"
+          >
+            <CloseGlyph />
+          </button>
+        </div>
+        <nav>
+          <ul>
+            {TABS.map(t => (
+              <li key={t.id}>
+                <button
+                  className={tab === t.id ? 'active' : ''}
+                  onClick={() => {
+                    setTab(t.id);
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <t.icon /> {t.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="sidebar-footer">
+          <p className="hint">Signed in as {me.email}</p>
+        </div>
+      </aside>
+
+      <header className="mobile-header">
+        <button className="menu-btn" onClick={() => setMobileMenuOpen(true)} aria-label="Open menu">
+          <MenuGlyph />
+        </button>
+        <span className="mobile-title">Dashboard</span>
+        <span className="mobile-tab">{TABS.find(t => t.id === tab)?.label}</span>
+      </header>
+
+      <main className="main">
+        <div className="page-header">
+          <h1>{TABS.find(t => t.id === tab)?.label}</h1>
+        </div>
+        {renderTabContent()}
+      </main>
+    </div>
+  );
 }
+
+// Components
+function StatCard({ icon, label, value, highlight }: { icon: React.ReactNode; label: string; value: string | number; highlight?: boolean }) {
+  return (
+    <div className="panel stat-card" style={{ ...(highlight && { borderColor: 'var(--ember)' }) }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ color: highlight ? 'var(--ember)' : 'var(--muted)', fontSize: 22 }}>{icon}</div>
+        <div>
+          <p style={{ margin: '0 0 4px', color: 'var(--muted)', fontSize: 13.5 }}>{label}</p>
+          <p style={{ margin: 0, fontSize: 22, fontWeight: 600, color: highlight ? 'var(--ember)' : 'var(--ink)' }}>{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCardSkeleton() {
+  return (
+    <div className="panel stat-card">
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+        <div className="skeleton" style={{ width: 22, height: 22, borderRadius: 6 }} />
+        <div style={{ flex: 1 }}>
+          <div className="skeleton" style={{ width: '60%', height: 13, borderRadius: 4, marginBottom: 6 }} />
+          <div className="skeleton" style={{ width: '40%', height: 22, borderRadius: 4 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductRow({ product, onEdit, onDelete, onToggle }: { product: Product; onEdit: () => void; onDelete: () => void; onToggle: () => void }) {
+  const isPublished = product.status === 'published';
+  return (
+    <div className="panel product-row">
+      <div style={{ display: 'flex', gap: 12 }}>
+        {product.cover_url && (
+          <img src={`/api/images/${product.cover_url}`} alt="" style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', background: 'var(--moss)' }} />
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <h4 style={{ margin: 0, fontSize: 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.title}</h4>
+            <span className={`chip ${isPublished ? 'badge-published' : 'badge-draft'}`}>{isPublished ? 'Published' : 'Draft'}</span>
+            {product.flagged && <span className="chip badge-flagged"><AlertTriangleGlyph /> Flagged</span>}
+            {product.affiliate_enabled && <span className="chip" style={{ background: 'var(--ember)', opacity: 0.12, color: 'var(--ember)' }}><UsersGlyph /> Affiliate: {product.affiliate_commission}%</span>}
+          </div>
+          <p className="hint" style={{ margin: '4px 0 0', fontSize: 13 }}>
+            {formatUsd(product.price_usd)} · {product.category} · {timeAgo(product.created_at)}
+          </p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <button className="btn btn-outline btn-sm" onClick={onEdit} title="Edit">
+            <EditGlyph />
+          </button>
+          <button className="btn btn-outline btn-sm" onClick={onToggle} title={isPublished ? 'Unpublish' : 'Publish'}>
+            {isPublished ? <EyeGlyph style={{ opacity: 0.6 }} /> : <EyeGlyph />}
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={onDelete} title="Delete">
+            <TrashGlyph />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductSkeleton() {
+  return (
+    <div className="panel product-row">
+      <div style={{ display: 'flex', gap: 12 }}>
+        <div className="skeleton" style={{ width: 64, height: 64, borderRadius: 8 }} />
+        <div style={{ flex: 1 }}>
+          <div className="skeleton" style={{ width: '60%', height: 16, borderRadius: 4, marginBottom: 6 }} />
+          <div className="skeleton" style={{ width: '40%', height: 13, borderRadius: 4 }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="skeleton" style={{ width: 32, height: 32, borderRadius: 6 }} />
+          <div className="skeleton" style={{ width: 32, height: 32, borderRadius: 6 }} />
+          <div className="skeleton" style={{ width: 32, height: 32, borderRadius: 6 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OrderSkeleton() {
+  return (
+    <div className="skeleton" style={{ height: 48, borderRadius: 4 }} />
+  );
+}
+
+function AffiliateProductCard({ product }: { product: Product }) {
+  return (
+    <div className="panel">
+      <div style={{ display: 'flex', gap: 12 }}>
+        {product.cover_url && (
+          <img src={`/api/images/${product.cover_url}`} alt="" style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', background: 'var(--moss)' }} />
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <h4 style={{ margin: '0 0 4px', fontSize: 15 }}>{product.title}</h4>
+          <p className="hint" style={{ margin: 0, fontSize: 13 }}>
+            {formatUsd(product.price_usd)} · Affiliate commission: {product.affiliate_commission}% · {timeAgo(product.created_at)}
+          </p>
+        </div>
+        <a href={`/store/${product.store_slug}/${product.slug}`} target="_blank" rel="noopener" className="btn btn-outline btn-sm" style={{ alignSelf: 'flex-start' }}>
+          <ExternalLinkGlyph /> View
+        </a>
+      </div>
+    </div>
+  );
+}
+
+export default Dashboard;
