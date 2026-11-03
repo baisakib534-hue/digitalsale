@@ -290,4 +290,16 @@ export function runMigrations(db: Database.Database): void {
   if (!ordersCols.has('flash_deal_id')) {
     db.exec("ALTER TABLE orders ADD COLUMN flash_deal_id TEXT");
   }
+
+  // 25. v18: bundles + bundle_items tables (schema.sql creates them idempotently).
+  // Ensure orders table can reference a bundle.
+  const ordersColsV18 = new Set(
+    db.prepare(`PRAGMA table_info(orders)`).all().map((r) => (r as { name: string }).name)
+  );
+  if (!ordersColsV18.has('bundle_id')) {
+    db.exec("ALTER TABLE orders ADD COLUMN bundle_id TEXT");
+  }
+  if (!ordersColsV18.has('price_winner')) {
+    db.exec("ALTER TABLE orders ADD COLUMN price_winner TEXT NOT NULL DEFAULT 'bundle'");
+  }
 }

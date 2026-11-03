@@ -303,3 +303,27 @@ CREATE TABLE IF NOT EXISTS channel_post_queue (
 );
 
 CREATE INDEX IF NOT EXISTS idx_channel_post_queue_status ON channel_post_queue(status);
+
+-- Bundles (v18): seller-curated groups of 2+ products sold at a single price.
+-- One row per bundle; items stored in bundle_items with CASCADE on delete.
+CREATE TABLE IF NOT EXISTS bundles (
+  id           TEXT PRIMARY KEY,
+  seller_id    TEXT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  description  TEXT NOT NULL DEFAULT '',
+  price_cents  INTEGER NOT NULL, -- the ONE bundle price in cents
+  cover_image  TEXT, -- optional cover image URL
+  status       TEXT NOT NULL DEFAULT 'live', -- live | ended
+  created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS bundle_items (
+  bundle_id  TEXT NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+  product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  PRIMARY KEY (bundle_id, product_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bundles_seller ON bundles(seller_id);
+CREATE INDEX IF NOT EXISTS idx_bundles_status ON bundles(status);
+CREATE INDEX IF NOT EXISTS idx_bundle_items_product ON bundle_items(product_id);
