@@ -302,4 +302,14 @@ export function runMigrations(db: Database.Database): void {
   if (!ordersColsV18.has('price_winner')) {
     db.exec("ALTER TABLE orders ADD COLUMN price_winner TEXT NOT NULL DEFAULT 'bundle'");
   }
+
+  // 26. v18: order_items table for bundle line items (each product in a bundle order).
+  db.exec(`CREATE TABLE IF NOT EXISTS order_items (
+    id         TEXT PRIMARY KEY,
+    order_id   TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    price_cents INTEGER NOT NULL, -- final price paid for this item (after discounts/deals)
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id)');
 }
