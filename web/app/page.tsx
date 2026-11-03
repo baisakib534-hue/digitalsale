@@ -3,6 +3,7 @@ import { getDb } from '../lib/db';
 import { BRAND } from '../lib/brand';
 import ProductCard, { type CardProduct } from '../components/ProductCard';
 import { enrichCards } from '../lib/cards';
+import { getActiveFlashDeals } from '../lib/flashDeals';
 import EmptyState, { SproutGlyph } from '../components/EmptyState';
 import LandingSearch from '../components/LandingSearch';
 import Reveal, { RevealGroup, RevealItem } from '../components/Reveal';
@@ -100,6 +101,40 @@ export default function LandingPage() {
             ))}
           </RevealGroup>
         )}
+
+      {/* Flash deals rail — only when live deals exist */}
+      {(() => {
+        const activeDeals = getActiveFlashDeals(db);
+        if (activeDeals.length === 0) return null;
+        const dealProducts = activeDeals
+          .map((deal: { product_id: string; discount_percent: number; ends_at: string }) => {
+            const product = latest.find((p) => p.id === deal.product_id);
+            return product ? { ...product, flash_deal: { discount_percent: deal.discount_percent, ends_at: deal.ends_at } } : null;
+          })
+          .filter((p): p is CardProduct & { flash_deal: { discount_percent: number; ends_at: string } } => !!p);
+        if (dealProducts.length === 0) return null;
+        return (
+          <section className="section section-tight" style={{ paddingTop: 8 }}>
+            <div className="wrap">
+              <Reveal>
+                <div className="section-head">
+                  <div>
+                    <span className="eyebrow" style={{ color: 'var(--ember)' }}>Flash deals</span>
+                    <h2>Live discounts <em>right now.</em></h2>
+                  </div>
+                </div>
+              </Reveal>
+              <RevealGroup className="product-grid" style={{ marginTop: 28 }}>
+                {dealProducts.map((p: CardProduct & { flash_deal: { discount_percent: number; ends_at: string } }) => (
+                  <RevealItem key={p.id}>
+                    <ProductCard product={p} />
+                  </RevealItem>
+                ))}
+              </RevealGroup>
+            </div>
+          </section>
+        );
+      })()}
       </section>
 
       {/* Trust strip — four pillars */}

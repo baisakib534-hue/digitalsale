@@ -43,6 +43,7 @@ import {
   RefreshCwGlyph,
   MenuGlyph,
   XGlyph as CloseGlyph,
+  ZapGlyph,
 } from '@/components/icons';
 import EmptyState, { SproutGlyph, BasketGlyph } from '../../components/EmptyState';
 import ProductCard, { type CardProduct } from '../../components/ProductCard';
@@ -140,6 +141,17 @@ interface DiscountCode {
   used_count: number;
   max_uses: number | null;
   active: number;
+}
+
+interface FlashDeal {
+  id: string;
+  product_id: string;
+  discount_percent: number;
+  starts_at: string;
+  ends_at: string;
+  current_uses: number;
+  orders_attributed: number;
+  revenue_attributed: number;
 }
 
 interface LicenseKey {
@@ -255,6 +267,10 @@ function Dashboard() {
   const [dcBusy, setDcBusy] = useState(false);
   const [dcError, setDcError] = useState<string | null>(null);
 
+  // Flash deals
+  const [flashDeals, setFlashDeals] = useState<FlashDeal[]>([]);
+  const [flashDealsLoading, setFlashDealsLoading] = useState(false);
+
   const fetchMe = useCallback(async () => {
     try {
       const res = await fetch('/api/me');
@@ -284,6 +300,21 @@ function Dashboard() {
       setProductsError('Failed to load products');
     } finally {
       setProductsLoading(false);
+    }
+  }, []);
+
+  const fetchFlashDeals = useCallback(async () => {
+    setFlashDealsLoading(true);
+    try {
+      const res = await fetch('/api/products?mine=1&includeFlashDeals=1');
+      if (res.ok) {
+        const data = await res.json();
+        setFlashDeals(data.flashDeals || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setFlashDealsLoading(false);
     }
   }, []);
 
@@ -469,6 +500,82 @@ function Dashboard() {
     fetchProductFiles(p.id);
     fetchLicenses(p.id);
     fetchDiscounts(p.id);
+  };
+
+  // Flash deal modal state
+  const [flashDealProductId, setFlashDealProductId] = useState<string | null>(null);
+  const [fdDiscount, setFdDiscount] = useState(20);
+  const [fdDuration, setFdDuration] = useState('24h');
+  const [fdCustomEnd, setFdCustomEnd] = useState('');
+  const [fdBusy, setFdBusy] = useState(false);
+  const [fdError, setFdError] = useState<string | null>(null);
+
+  const openFlashDealModal = (p: Product) => {
+    setFlashDealProductId(p.id);
+    setFdDiscount(20);
+    setFdDuration('24h');
+    setFdCustomEnd('');
+    setFdError(null);
+  };
+
+  const closeFlashDealModal = () => {
+    setFlashDealProductId(null);
+    setFdError(null);
+  };
+
+  const startFlashDeal = async () => {
+    if (!flashDealProductId) return;
+    setFdBusy(true);
+    setFdError(null);
+    try {
+      const now = new Date();
+      let startsAt: string;
+      let endsAt: string;
+      if (fdDuration === 'custom' && fdCustomEnd) {
+        startsAt = now.toISOString();
+        endsAt = new Date(fdCustomEnd).toISOString();
+      } else {
+        startsAt = now.toISOString();
+        const hours = fdDuration === '6h' ? 6 : fdDuration === '24h' ? 24 : fdDuration === '48h' ? 48 : 72;
+        endsAt = new Date(now.getTime() + hours * 3600 * 1000).toISOString();
+      }
+      const res = await fetch(`/api/products/${flashDealProductId}/flash-deals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ discount_percent: fdDiscount, starts_at: startsAt, ends_at: endsAt }),
+      });
+      if (res.ok) {
+        closeFlashDealModal();
+        fetchProducts();
+        fetchFlashDeals();
+      } else {
+        const data = await res.json();
+        setFdError(data.error || 'Failed to start flash deal');
+      }
+    } catch {
+      setFdError('Failed to start flash deal');
+    } finally {
+      setFdBusy(false);
+    }
+  };
+
+  const endDealEarly = async (productId: string) => {
+    try {
+      const res = await fetch(`/api/products/${productId}/flash-deals`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'end_early' }),
+      });
+      if (res.ok) {
+        fetchProducts();
+        fetchFlashDeals();
+      } else {
+        const data = await res.json();
+        console.error('Failed to end flash deal:', data.error);
+      }
+    } catch {
+      console.error('Failed to end flash deal');
+    }
   };
 
   const fetchProductImages = async (id: string) => {
@@ -841,9 +948,21 @@ function Dashboard() {
         />
       ) : (
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280, 1fr))', gap: 16 }}>
-          {products.map(p => (
-            <ProductRow key={p.id} product={p} onEdit={() => startEdit(p)} onDelete={() => deleteProduct(p.id)} onToggle={() => toggleStatus(p.id, p.status)} />
-          ))}
+          {products.map(p => {
+            const deal = flashDeals.find(d => d.product_id === p.id);
+            return (
+              <ProductRow
+                key={p.id}
+                product={p}
+                onEdit={() => startEdit(p)}
+                onDelete={() => deleteProduct(p.id)}
+                onToggle={() => toggleStatus(p.id, p.status)}
+                flashDeal={deal}
+                onStartDeal={() => openFlashDealModal(p)}
+                onEndDeal={endDealEarly}
+              />
+            );
+          })}
         </div>
       )}
     </div>
@@ -1306,6 +1425,125 @@ function Dashboard() {
         </div>
         {renderTabContent()}
       </main>
+      {flashDealProductId && (
+        <div
+          className="modal-overlay"
+          onClick={closeFlashDealModal}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: 24,
+          }}
+        >
+          <div
+            className="panel"
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 420,
+              background: 'var(--paper)',
+              borderRadius: 12,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 18 }}>Start flash deal</h3>
+              <button
+                className="btn btn-ghost"
+                onClick={closeFlashDealModal}
+                style={{ padding: 4 }}
+                aria-label="Close"
+              >
+                <CloseGlyph />
+              </button>
+            </div>
+            <form onSubmit={e => { e.preventDefault(); startFlashDeal(); }}>
+              <div className="field" style={{ marginBottom: 16 }}>
+                <label htmlFor="fd-discount" style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 500 }}>
+                  Discount %
+                </label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                  {[10, 20, 30, 50].map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={`btn btn-sm ${fdDiscount === d ? 'btn-dark' : 'btn-outline'}`}
+                      onClick={() => setFdDiscount(d)}
+                      style={{ textTransform: 'none' }}
+                    >
+                      {d}%
+                    </button>
+                  ))}
+                  <input
+                    id="fd-discount"
+                    type="number"
+                    className="input"
+                    style={{ width: 80 }}
+                    min={5}
+                    max={90}
+                    value={fdDiscount}
+                    onChange={e => setFdDiscount(Math.min(90, Math.max(5, Number(e.target.value))))}
+                  />
+                </div>
+              </div>
+              <div className="field" style={{ marginBottom: 16 }}>
+                <label htmlFor="fd-duration" style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 500 }}>
+                  Duration
+                </label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                  {['6h', '24h', '48h', '72h'].map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={`btn btn-sm ${fdDuration === d ? 'btn-dark' : 'btn-outline'}`}
+                      onClick={() => { setFdDuration(d); setFdCustomEnd(''); }}
+                      style={{ textTransform: 'none' }}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${fdDuration === 'custom' ? 'btn-dark' : 'btn-outline'}`}
+                    onClick={() => setFdDuration('custom')}
+                    style={{ textTransform: 'none' }}
+                  >
+                    Custom
+                  </button>
+                </div>
+                {fdDuration === 'custom' && (
+                  <input
+                    id="fd-duration"
+                    type="datetime-local"
+                    className="input"
+                    value={fdCustomEnd}
+                    onChange={e => setFdCustomEnd(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)}
+                  />
+                )}
+              </div>
+              {fdError && (
+                <div className="form-error" role="alert" style={{ marginBottom: 16 }}>
+                  {fdError}
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                <button type="button" className="btn btn-outline" onClick={closeFlashDealModal}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={fdBusy}>
+                  {fdBusy ? 'Starting…' : 'Start deal'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1339,8 +1577,23 @@ function StatCardSkeleton() {
   );
 }
 
-function ProductRow({ product, onEdit, onDelete, onToggle }: { product: Product; onEdit: () => void; onDelete: () => void; onToggle: () => void }) {
+function ProductRow({ product, onEdit, onDelete, onToggle, flashDeal, onStartDeal, onEndDeal }: { product: Product; onEdit: () => void; onDelete: () => void; onToggle: () => void; flashDeal?: FlashDeal; onStartDeal: () => void; onEndDeal: (productId: string) => void }) {
   const isPublished = product.status === 'published';
+  const now = new Date();
+  const dealEndsAt = flashDeal ? new Date(flashDeal.ends_at) : null;
+  const dealStarted = flashDeal ? new Date(flashDeal.starts_at) <= now : false;
+  const dealEnded = dealEndsAt ? dealEndsAt <= now : true;
+  const dealIsLive = flashDeal && dealStarted && !dealEnded;
+  const timeLeft = dealIsLive ? Math.floor((dealEndsAt!.getTime() - now.getTime()) / 1000) : 0;
+  const formatTimeLeft = (sec: number) => {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m ${s}s`;
+  };
+
+  const buyerPrice = flashDeal ? Math.round(product.price_usd * (1 - flashDeal.discount_percent / 100)) : product.price_usd;
+
   return (
     <div className="panel product-row">
       <div style={{ display: 'flex', gap: 12 }}>
@@ -1353,10 +1606,32 @@ function ProductRow({ product, onEdit, onDelete, onToggle }: { product: Product;
             <span className={`chip ${isPublished ? 'badge-published' : 'badge-draft'}`}>{isPublished ? 'Published' : 'Draft'}</span>
             {product.flagged && <span className="chip badge-flagged"><AlertTriangleGlyph /> Flagged</span>}
             {product.affiliate_enabled && <span className="chip" style={{ background: 'var(--ember)', opacity: 0.12, color: 'var(--ember)' }}><UsersGlyph /> Affiliate: {product.affiliate_commission}%</span>}
+            {flashDeal && (
+              <span className="chip" style={{ background: dealIsLive ? 'var(--ember)' : dealEnded ? 'var(--moss)' : 'var(--sage)', opacity: dealIsLive ? 0.15 : 0.1, color: dealIsLive ? 'var(--ember)' : dealEnded ? 'var(--moss)' : 'var(--sage)' }}>
+                {dealIsLive ? (
+                  <>
+                    <ZapGlyph /> Live {flashDeal.discount_percent}% off · {formatTimeLeft(timeLeft)} left · {flashDeal.orders_attributed || flashDeal.current_uses} orders
+                  </>
+                ) : dealEnded ? (
+                  <>
+                    <ZapGlyph /> Ended {flashDeal.discount_percent}% off · {flashDeal.orders_attributed || flashDeal.current_uses} orders · {formatUsd(flashDeal.revenue_attributed || 0)} revenue
+                  </>
+                ) : (
+                  <>
+                    <ZapGlyph /> Starts {new Date(flashDeal.starts_at).toLocaleString()} · {flashDeal.discount_percent}% off
+                  </>
+                )}
+              </span>
+            )}
           </div>
           <p className="hint" style={{ margin: '4px 0 0', fontSize: 13 }}>
             {formatUsd(product.price_usd)} · {product.category} · {timeAgo(product.created_at)}
           </p>
+          {flashDeal && dealIsLive && (
+            <p className="hint" style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--ember)', fontVariantNumeric: 'tabular-nums' }}>
+              Buyer sees: {formatUsd(buyerPrice)} (was {formatUsd(product.price_usd)}) · {flashDeal.discount_percent}% off · Deal ends in {formatTimeLeft(timeLeft)}
+            </p>
+          )}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <button className="btn btn-outline btn-sm" onClick={onEdit} title="Edit">
@@ -1365,6 +1640,16 @@ function ProductRow({ product, onEdit, onDelete, onToggle }: { product: Product;
           <button className="btn btn-outline btn-sm" onClick={onToggle} title={isPublished ? 'Unpublish' : 'Publish'}>
             {isPublished ? <EyeGlyph style={{ opacity: 0.6 }} /> : <EyeGlyph />}
           </button>
+          {isPublished && !flashDeal && (
+            <button className="btn btn-primary btn-sm" onClick={onStartDeal} title="Start flash deal">
+              <ZapGlyph /> Deal
+            </button>
+          )}
+          {isPublished && flashDeal && dealIsLive && (
+            <button className="btn btn-danger btn-sm" onClick={() => onEndDeal(flashDeal.product_id)} title="End flash deal early">
+              <XGlyph /> End deal
+            </button>
+          )}
           <button className="btn btn-ghost btn-sm" onClick={onDelete} title="Delete">
             <TrashGlyph />
           </button>

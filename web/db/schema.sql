@@ -211,6 +211,7 @@ CREATE TABLE IF NOT EXISTS flash_deals (
   starts_at         TEXT NOT NULL,
   ends_at           TEXT NOT NULL,
   current_uses      INTEGER NOT NULL DEFAULT 0, -- v17: tracks how many times deal was used
+  start_post_sent   INTEGER NOT NULL DEFAULT 0, -- v17: 1 if deal-start bot post has been sent
   created_at        TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(product_id)
 );

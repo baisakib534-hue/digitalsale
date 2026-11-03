@@ -32,6 +32,17 @@ interface ProductRow {
   store_slug: string;
 }
 
+interface FlashDealRow {
+  id: string;
+  product_id: string;
+  discount_percent: number;
+  starts_at: string;
+  ends_at: string;
+  current_uses: number;
+  orders_attributed: number;
+  revenue_attributed: number;
+}
+
 const AFFILIATE_JOIN = `LEFT JOIN product_affiliates pa ON pa.product_id = p.id`;
 
 const PUBLIC_SELECT = `SELECT p.id, p.store_id, p.title, p.slug, p.description, p.price_usd,
@@ -63,12 +74,13 @@ function getOrigin(req: Request): string {
 
 /**
  * GET /api/products
- *   ?mine=1[&status=] — auth; the seller's own products, all statuses
+ *   ?mine=1[&status=][&includeFlashDeals=1] — auth; the seller's own products, all statuses
  *   ?published=1[&q=&category=&sort=] — public list (market page uses server DB directly)
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const db = getDb();
+  const includeFlashDeals = url.searchParams.get('includeFlashDeals') === '1';
 
   if (url.searchParams.get('mine') === '1') {
     const uid = getSessionUserId(req);
@@ -82,6 +94,27 @@ export async function GET(req: Request) {
     }
     sql += ' ORDER BY p.created_at DESC';
     const products = db.prepare(sql).all(...params) as ProductRow[];
+
+    if (includeFlashDeals) {
+      const productIds = products.map(p => p.id);
+      if (productIds.length > 0) {
+        const placeholders = productIds.map(() => '?').join(',');
+        const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        const deals = db.prepare(
+          `SELECT fd.id, fd.product_id, fd.discount_percent, fd.starts_at, fd.ends_at, fd.current_uses,
+                  COALESCE(o.orders_attributed, 0) AS orders_attributed,
+                  COALESCE(o.revenue_attributed, 0) AS revenue_attributed
+           FROM flash_deals fd
+           LEFT JOIN (
+             SELECT flash_deal_id, COUNT(*) AS orders_attributed, COALESCE(SUM(amount_usd), 0) AS revenue_attributed
+             FROM orders WHERE status = 'paid' GROUP BY flash_deal_id
+           ) o ON o.flash_deal_id = fd.id
+           WHERE fd.product_id IN (${placeholders})`
+        ).all(...productIds) as FlashDealRow[];
+        return NextResponse.json({ products, flashDeals: deals });
+      }
+    }
+
     return NextResponse.json({ products });
   }
 

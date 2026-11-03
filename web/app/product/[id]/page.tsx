@@ -15,6 +15,7 @@ import { productRating } from '../../../lib/reviews';
 import { currentUserIdFromCookies } from '../../../lib/cards';
 import { isWishlisted } from '../../../lib/wishlist';
 import WishlistButton from '../../../components/WishlistButton';
+import { getFlashDeal, liveDealForProduct } from '../../../lib/flashDeals';
 
 export const dynamic = 'force-dynamic';
 
@@ -104,6 +105,20 @@ export default function ProductPage({ params }: { params: { id: string } }) {
   const soldOut = stock.soldOut && !underReview;
   const badges = getBadges(db).get(row.id) ?? [];
   const rating = productRating(db, row.id);
+
+  // Flash deal
+  const flashDeal = getFlashDeal(db, row.id);
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const dealIsLive = flashDeal && flashDeal.starts_at <= now && flashDeal.ends_at > now;
+  const dealEndsAt = flashDeal ? new Date(flashDeal.ends_at.replace(' ', 'T')) : null;
+  const timeLeft = dealIsLive && dealEndsAt ? Math.max(0, Math.floor((dealEndsAt.getTime() - Date.now()) / 1000)) : 0;
+  const formatTimeLeft = (sec: number) => {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+  const dealPrice = dealIsLive ? Math.round(row.price_usd * (1 - flashDeal!.discount_percent / 100)) : row.price_usd;
 
   const soldTotal = (
     db.prepare(`SELECT COUNT(*) AS c FROM orders WHERE product_id = ? AND status = 'paid'`).get(row.id) as {
@@ -328,6 +343,11 @@ export default function ProductPage({ params }: { params: { id: string } }) {
             </div>
           ) : (
             <>
+              {dealIsLive && (
+                <div className="flash-countdown-strip" style={{ background: 'var(--ember)', color: '#fff', padding: '8px 12px', borderRadius: 6, fontSize: 13, fontWeight: 600, fontVariantNumeric: 'tabular-nums', marginBottom: 16, textAlign: 'center' }}>
+                  Deal ends in {formatTimeLeft(timeLeft)}
+                </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <span className="eyebrow" style={{ marginBottom: 0 }}>
                   One-time payment
@@ -338,13 +358,20 @@ export default function ProductPage({ params }: { params: { id: string } }) {
                   fontFamily: 'var(--font-display)',
                   fontSize: '2.5rem',
                   fontWeight: 600,
-                  color: 'var(--ink)',
+                  color: dealIsLive ? 'var(--ember)' : 'var(--ink)',
                   margin: '8px 0 4px',
                 }}
               >
-                {formatUsd(row.price_usd)}
+                {dealIsLive ? (
+                  <>
+                    <span style={{ textDecoration: 'line-through', color: 'var(--muted)', fontSize: '1.5rem', fontWeight: 400, marginRight: 12 }}>{formatUsd(row.price_usd)}</span>
+                    <span>{formatUsd(dealPrice)}</span>
+                  </>
+                ) : (
+                  formatUsd(row.price_usd)
+                )}
               </div>
-              <BuyPanel productId={row.id} priceCents={row.price_usd} />
+              <BuyPanel productId={row.id} priceCents={dealIsLive ? dealPrice : row.price_usd} />
               {stock.stockLimit !== null && (
                 <p style={{ margin: '12px 0 0', fontSize: 13, color: 'var(--ember)' }}>
                   {stock.remaining === 1

@@ -8,6 +8,7 @@ export interface FlashDealRow {
   starts_at: string;
   ends_at: string;
   current_uses: number;
+  start_post_sent: number;
   created_at: string;
 }
 
@@ -22,7 +23,7 @@ export function liveDealForProduct(
 ): FlashDealRow | null {
   const row = db
     .prepare(
-      `SELECT id, product_id, discount_percent, starts_at, ends_at, current_uses, created_at
+      `SELECT id, product_id, discount_percent, starts_at, ends_at, current_uses, start_post_sent, created_at
        FROM flash_deals
        WHERE product_id = ?
          AND starts_at <= ?
@@ -104,6 +105,7 @@ export function createFlashDeal(
     starts_at: startsAt,
     ends_at: endsAt,
     current_uses: 0,
+    start_post_sent: 0,
     created_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
   };
 }
@@ -138,7 +140,7 @@ export function deleteFlashDeal(db: Database.Database, productId: string): boole
 export function getFlashDeal(db: Database.Database, productId: string): FlashDealRow | null {
   return db
     .prepare(
-      `SELECT id, product_id, discount_percent, starts_at, ends_at, current_uses, created_at
+      `SELECT id, product_id, discount_percent, starts_at, ends_at, current_uses, start_post_sent, created_at
        FROM flash_deals WHERE product_id = ?`
     )
     .get(productId) as FlashDealRow | undefined ?? null;
@@ -173,4 +175,30 @@ export function isSellerBanned(db: Database.Database, storeId: string): boolean 
     .prepare(`SELECT u.banned_at FROM stores s JOIN users u ON u.id = s.user_id WHERE s.id = ?`)
     .get(storeId) as { banned_at: string | null } | undefined;
   return !!row?.banned_at;
+}
+
+/**
+ * Get all currently live flash deals (active, within time window).
+ */
+export function getActiveFlashDeals(
+  db: Database.Database,
+  now: string = new Date().toISOString().slice(0, 19).replace('T', ' ')
+): FlashDealRow[] {
+  return db
+    .prepare(
+      `SELECT id, product_id, discount_percent, starts_at, ends_at, current_uses, start_post_sent, created_at
+       FROM flash_deals
+       WHERE starts_at <= ? AND ends_at > ?`
+    )
+    .all(now, now) as FlashDealRow[];
+}
+
+/**
+ * Mark the deal-start bot post as sent for a flash deal.
+ */
+export function markFlashDealStartPostSent(db: Database.Database, productId: string): boolean {
+  const result = db
+    .prepare(`UPDATE flash_deals SET start_post_sent = 1 WHERE product_id = ?`)
+    .run(productId);
+  return result.changes > 0;
 }
