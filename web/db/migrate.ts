@@ -268,4 +268,25 @@ export function runMigrations(db: Database.Database): void {
   );
   if (!queueCols.has('kind'))
     db.exec("ALTER TABLE channel_post_queue ADD COLUMN kind TEXT NOT NULL DEFAULT 'new'");
+
+  // 23. v17: flash_deals table — time-boxed automatic discounts per product.
+  db.exec(`CREATE TABLE IF NOT EXISTS flash_deals (
+    id            TEXT PRIMARY KEY,
+    product_id    TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    discount_percent INTEGER NOT NULL CHECK (discount_percent >= 5 AND discount_percent <= 90),
+    starts_at     TEXT NOT NULL,
+    ends_at       TEXT NOT NULL,
+    current_uses  INTEGER NOT NULL DEFAULT 0,
+    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(product_id)
+  )`);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_flash_deals_time ON flash_deals(starts_at, ends_at)');
+
+  // 24. v17: add flash_deal_id to orders
+  const ordersCols = new Set(
+    db.prepare(`PRAGMA table_info(orders)`).all().map((r) => (r as { name: string }).name)
+  );
+  if (!ordersCols.has('flash_deal_id')) {
+    db.exec("ALTER TABLE orders ADD COLUMN flash_deal_id TEXT");
+  }
 }

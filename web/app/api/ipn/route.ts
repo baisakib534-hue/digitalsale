@@ -37,8 +37,8 @@ export async function POST(req: Request) {
     const status = typeof parsed.payment_status === 'string' ? parsed.payment_status : '';
     if (status === 'finished' && orderId) {
       const db = getDb();
-      const order = db.prepare('SELECT id, product_id, status, discount_code FROM orders WHERE id = ?').get(orderId) as
-        | { id: string; product_id: string; status: string; discount_code: string | null }
+      const order = db.prepare('SELECT id, product_id, status, discount_code, flash_deal_id FROM orders WHERE id = ?').get(orderId) as
+        | { id: string; product_id: string; status: string; discount_code: string | null; flash_deal_id: string | null }
         | undefined;
       if (order && order.status === 'pending') {
         // Affiliate stats derive from paid orders carrying affiliate_code —
@@ -64,6 +64,14 @@ export async function POST(req: Request) {
             } catch (err) {
               console.error('[ipn] discount use increment failed:', (err as Error).message);
             }
+          }
+        }
+        // v17: count the flash deal use.
+        if (order.flash_deal_id) {
+          try {
+            db.prepare('UPDATE flash_deals SET current_uses = current_uses + 1 WHERE id = ?').run(order.flash_deal_id);
+          } catch (err) {
+            console.error('[ipn] flash deal use increment failed:', (err as Error).message);
           }
         }
         // v10: Gumroad-style license key per paid order (idempotent).

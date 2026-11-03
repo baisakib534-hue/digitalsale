@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS orders (
   affiliate_usd           INTEGER NOT NULL DEFAULT 0, -- cents, affiliate cut
   discount_code           TEXT,              -- v11: discount code used, if any
   discount_usd            INTEGER NOT NULL DEFAULT 0, -- v11: cents saved via discount
+  flash_deal_id           TEXT,              -- v17: flash deal applied, if any
   status                  TEXT NOT NULL DEFAULT 'pending', -- pending | paid | failed
   nowpayments_invoice_id  TEXT,
   created_at              TEXT NOT NULL DEFAULT (datetime('now'))
@@ -200,6 +201,21 @@ CREATE TABLE IF NOT EXISTS discount_codes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_discount_codes_product ON discount_codes(product_id);
+
+-- Flash deals (v17): time-boxed automatic discounts per product.
+-- One live deal per product enforced by UNIQUE(product_id).
+CREATE TABLE IF NOT EXISTS flash_deals (
+  id                TEXT PRIMARY KEY,
+  product_id        TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  discount_percent  INTEGER NOT NULL CHECK (discount_percent >= 5 AND discount_percent <= 90),
+  starts_at         TEXT NOT NULL,
+  ends_at           TEXT NOT NULL,
+  current_uses      INTEGER NOT NULL DEFAULT 0, -- v17: tracks how many times deal was used
+  created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(product_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_flash_deals_time ON flash_deals(starts_at, ends_at);
 
 -- Reviews & ratings (v11, Etsy-style): one review per paid order.
 CREATE TABLE IF NOT EXISTS reviews (

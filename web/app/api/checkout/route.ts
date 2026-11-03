@@ -6,6 +6,7 @@ import { paymentsConfigured, splitOrder } from '../../../lib/nowpayments';
 import { stockInfo } from '../../../lib/stock';
 import { BRAND } from '../../../lib/brand';
 import { validateDiscount } from '../../../lib/discounts';
+import { liveDealForProduct, flashDealPrice, discountedPrice } from '../../../lib/flashDeals';
 import {
   getRefCode,
   clearRefCookieHeader,
@@ -62,18 +63,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'invalid-email' }, { status: 400 });
   }
 
+  // v17: flash deal — applied automatically if live. Lower price wins vs discount code.
+  const deal = liveDealForProduct(db, product.id);
+  let dealId: string | null = null;
+  let dealPrice = product.price_usd;
+  if (deal) {
+    dealId = deal.id;
+    dealPrice = discountedPrice(product.price_usd, deal.discount_percent);
+  }
+
   // v11: discount code — validated fresh; invalid codes are ignored silently
   // so a stale code never blocks checkout.
   let discountCode: string | null = null;
   let discountUsd = 0;
-  let finalPrice = product.price_usd;
+  let finalPrice = dealPrice;
   if (body.discountCode !== undefined && body.discountCode !== null && String(body.discountCode).trim() !== '') {
-    const check = validateDiscount(db, product.id, product.price_usd, body.discountCode);
+    const check = validateDiscount(db, product.id, dealPrice, body.discountCode);
     if (check.ok) {
       discountCode = check.row.code;
-      discountUsd = check.discountCents;
+      discountUsd = dealPrice - check.finalPriceCents;
       finalPrice = check.finalPriceCents;
     }
+  } else if (deal) {
+    // No code applied, but deal was applied — record savings from deal
+    discountUsd = product.price_usd - dealPrice;
   }
 
   // Affiliate attribution (v2): ?ref=CODE cookie → affiliate cut of the sale.
@@ -92,9 +105,9 @@ export async function POST(req: Request) {
   const id = randomId();
   db.prepare(
     `INSERT INTO orders (id, product_id, buyer_id, buyer_email, amount_usd, fee_usd, seller_usd,
-       affiliate_code, affiliate_usd, discount_code, discount_usd, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'))`
-  ).run(id, product.id, buyerId, email, finalPrice, fee, sellerUsd, affiliateCode, affiliateUsd, discountCode, discountUsd);
+       affiliate_code, affiliate_usd, discount_code, discount_usd, flash_deal_id, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'))`
+  ).run(id, product.id, buyerId, email, finalPrice, fee, sellerUsd, affiliateCode, affiliateUsd, discountCode, discountUsd, dealId);
 
   const res = NextResponse.json(
     {
@@ -102,6 +115,7 @@ export async function POST(req: Request) {
       paymentsConfigured: paymentsConfigured(),
       ...(affiliateCode ? { affiliateCode } : {}),
       ...(discountCode ? { discountCode, discountUsd } : {}),
+      ...(dealId ? { flashDealId: dealId, flashDealDiscountUsd: discountUsd } : {}),
     },
     { status: 201 }
   );
