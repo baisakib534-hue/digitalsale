@@ -496,9 +496,16 @@ function Dashboard() {
         const data = await res.json();
         setEditingId(data.product.id);
         fetchProducts();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (data.error === 'telegram-verification-required') {
+          alert('Please verify your Telegram account first (dashboard → Settings → Telegram).');
+        } else {
+          alert(`Could not create product: ${data.error || res.status}`);
+        }
       }
     } catch {
-      // ignore
+      alert('Network error — could not create product. Check your connection.');
     }
   };
 
@@ -1745,7 +1752,7 @@ function Dashboard() {
       <aside className="sidebar" aria-label="Dashboard navigation">
         <div className="sidebar-header">
           <Link href="/dashboard" className="brand" aria-label="Dashboard home">
-            <PackageGlyph /> Sellbridge
+            <PackageGlyph /> Digitalsale
           </Link>
           <button
             className="mobile-close"
