@@ -41,6 +41,8 @@ function safeFilename(name: string): string {
 }
 
 export function localDir(): string {
+  // Vercel serverless filesystem is read-only except /tmp.
+  if (process.env.VERCEL) return process.env.LOCAL_STORAGE_DIR || '/tmp/digitalsale-storage';
   return process.env.LOCAL_STORAGE_DIR || join(process.cwd(), 'storage');
 }
 
