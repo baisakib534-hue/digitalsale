@@ -29,12 +29,12 @@ export function isAdmin(db: Database.Database, userId: string): boolean {
  * suspended. There is no automatic un-ban; only a manual DB change reverses it.
  */
 export function banUser(db: Database.Database, userId: string, reason: string): boolean {
-  const user = db.prepare('SELECT id, status FROM users WHERE id = ?').get(userId) as
-    | { id: string; status: string }
+  const user = db.prepare('SELECT id, banned_at FROM users WHERE id = ?').get(userId) as
+    | { id: string; banned_at: string | null }
     | undefined;
-  if (!user || user.status === 'banned') return false;
+  if (!user || user.banned_at) return false;
   db.prepare(
-    `UPDATE users SET status = 'banned', banned_at = datetime('now'), ban_reason = ? WHERE id = ?`
+    `UPDATE users SET banned_at = datetime('now'), ban_reason = ? WHERE id = ?`
   ).run(reason, userId);
   // Suspend every product in every store they own.
   db.prepare(
@@ -47,8 +47,8 @@ export function banUser(db: Database.Database, userId: string, reason: string): 
 
 /** True when the user is permanently banned (login + actions blocked). */
 export function isBanned(db: Database.Database, userId: string): boolean {
-  const row = db.prepare('SELECT status FROM users WHERE id = ?').get(userId) as
-    | { status: string }
+  const row = db.prepare('SELECT banned_at FROM users WHERE id = ?').get(userId) as
+    | { banned_at: string | null }
     | undefined;
-  return row?.status === 'banned';
+  return !!row?.banned_at;
 }

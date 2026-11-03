@@ -6,8 +6,10 @@ import { REPORT_REASONS } from '../lib/reports';
 
 function freshDb(): Database.Database {
   const db = new Database(':memory:');
+  // NOTE: matches the REAL schema (db/schema.sql + migrations) — users has
+  // banned_at/ban_reason, there is no users.status column. Do not re-add it.
   db.exec(`
-    CREATE TABLE users (id TEXT PRIMARY KEY, status TEXT NOT NULL DEFAULT 'active', banned_at TEXT, ban_reason TEXT);
+    CREATE TABLE users (id TEXT PRIMARY KEY, banned_at TEXT, ban_reason TEXT);
     CREATE TABLE stores (id TEXT PRIMARY KEY, user_id TEXT NOT NULL);
     CREATE TABLE products (id TEXT PRIMARY KEY, store_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft');
   `);
@@ -21,8 +23,7 @@ describe('v13.2 trust & safety', () => {
     db.prepare(`INSERT INTO stores (id, user_id) VALUES ('s1', 'u1')`).run();
     db.prepare(`INSERT INTO products (id, store_id, status) VALUES ('p1', 's1', 'published'), ('p2', 's1', 'draft')`).run();
     assert.equal(banUser(db, 'u1', 'illegal content'), true);
-    const u = db.prepare(`SELECT status, banned_at, ban_reason FROM users WHERE id='u1'`).get() as any;
-    assert.equal(u.status, 'banned');
+    const u = db.prepare(`SELECT banned_at, ban_reason FROM users WHERE id='u1'`).get() as any;
     assert.ok(u.banned_at);
     assert.equal(u.ban_reason, 'illegal content');
     assert.equal(isBanned(db, 'u1'), true);
