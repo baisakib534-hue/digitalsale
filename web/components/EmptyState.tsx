@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import type { ReactNode, MouseEventHandler } from 'react';
 
 export default function EmptyState({
   glyph,
@@ -10,17 +10,22 @@ export default function EmptyState({
   glyph: ReactNode;
   title: string;
   body: string;
-  action?: { href: string; label: string };
+  action?: { href: string; label: string } | { onClick: MouseEventHandler<HTMLButtonElement>; label: string };
 }) {
   return (
     <div className="empty">
       <div className="glyph">{glyph}</div>
       <h3>{title}</h3>
       <p>{body}</p>
-      {action && (
+      {action && 'href' in action && (
         <Link href={action.href} className="btn btn-dark">
           {action.label}
         </Link>
+      )}
+      {action && 'onClick' in action && (
+        <button className="btn btn-dark" onClick={action.onClick}>
+          {action.label}
+        </button>
       )}
     </div>
   );

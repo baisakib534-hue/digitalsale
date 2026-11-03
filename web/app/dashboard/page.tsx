@@ -44,6 +44,7 @@ import {
   MenuGlyph,
   XGlyph as CloseGlyph,
   ZapGlyph,
+  LayersGlyph,
 } from '@/components/icons';
 import EmptyState, { SproutGlyph, BasketGlyph } from '../../components/EmptyState';
 import ProductCard, { type CardProduct } from '../../components/ProductCard';
@@ -51,9 +52,33 @@ import WishlistButton from '../../components/WishlistButton';
 import { formatUsd, shortId, timeAgo } from '@/lib/format';
 import { CATEGORIES } from '@/lib/categories';
 
+interface Bundle {
+  id: string;
+  seller_id: string;
+  name: string;
+  description: string;
+  price_cents: number;
+  cover_image: string | null;
+  status: 'live' | 'ended';
+  created_at: string;
+  updated_at: string;
+  items_count: number;
+  orders_count: number;
+  revenue_cents: number;
+}
+
+interface BundleItem {
+  product_id: string;
+  title: string;
+  price_cents: number;
+  cover_url: string | null;
+  status: string;
+}
+
 const TABS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboardGlyph },
   { id: 'products', label: 'Products', icon: PackageGlyph },
+  { id: 'bundles', label: 'Bundles', icon: LayersGlyph },
   { id: 'orders', label: 'Orders', icon: ReceiptGlyph },
   { id: 'payouts', label: 'Payouts', icon: CreditCardGlyph },
   { id: 'affiliates', label: 'Affiliates', icon: UsersGlyph },
@@ -271,6 +296,11 @@ function Dashboard() {
   const [flashDeals, setFlashDeals] = useState<FlashDeal[]>([]);
   const [flashDealsLoading, setFlashDealsLoading] = useState(false);
 
+  // Bundles
+  const [bundles, setBundles] = useState<Bundle[]>([]);
+  const [bundlesLoading, setBundlesLoading] = useState(true);
+  const [bundlesError, setBundlesError] = useState<string | null>(null);
+
   const fetchMe = useCallback(async () => {
     try {
       const res = await fetch('/api/me');
@@ -315,6 +345,24 @@ function Dashboard() {
       // ignore
     } finally {
       setFlashDealsLoading(false);
+    }
+  }, []);
+
+  const fetchBundles = useCallback(async () => {
+    setBundlesLoading(true);
+    setBundlesError(null);
+    try {
+      const res = await fetch('/api/bundles?mine=1');
+      if (res.ok) {
+        const data = await res.json();
+        setBundles(data.bundles || []);
+      } else {
+        setBundlesError('Failed to load bundles');
+      }
+    } catch {
+      setBundlesError('Failed to load bundles');
+    } finally {
+      setBundlesLoading(false);
     }
   }, []);
 
@@ -426,8 +474,9 @@ function Dashboard() {
       fetchAffiliateProducts();
       fetchTelegram();
       fetchSettings();
+      fetchBundles();
     }
-  }, [me, fetchProducts, fetchOrders, fetchPayoutSummary, fetchAffiliateProducts, fetchTelegram, fetchSettings]);
+  }, [me, fetchProducts, fetchOrders, fetchPayoutSummary, fetchAffiliateProducts, fetchTelegram, fetchSettings, fetchBundles]);
 
   // Product actions
   const createProduct = async () => {
@@ -575,6 +624,139 @@ function Dashboard() {
       }
     } catch {
       console.error('Failed to end flash deal');
+    }
+  };
+
+  // Bundle actions
+  const [bundleModalOpen, setBundleModalOpen] = useState(false);
+  const [bundleModalMode, setBundleModalMode] = useState<'create' | 'edit'>('create');
+  const [editingBundleId, setEditingBundleId] = useState<string | null>(null);
+  const [bundleForm, setBundleForm] = useState({
+    name: '',
+    description: '',
+    price_cents: '',
+    product_ids: [] as string[],
+  });
+  const [bundleProducts, setBundleProducts] = useState<Product[]>([]);
+  const [bundleFormError, setBundleFormError] = useState<string | null>(null);
+  const [bundleFormBusy, setBundleFormBusy] = useState(false);
+
+  const openCreateBundleModal = async () => {
+    setBundleModalMode('create');
+    setEditingBundleId(null);
+    setBundleForm({ name: '', description: '', price_cents: '', product_ids: [] });
+    setBundleFormError(null);
+    setBundleModalOpen(true);
+    try {
+      const res = await fetch('/api/products?mine=1&status=live');
+      if (res.ok) {
+        const data = await res.json();
+        setBundleProducts(data.products || []);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const openEditBundleModal = async (bundle: Bundle) => {
+    setBundleModalMode('edit');
+    setEditingBundleId(bundle.id);
+    setBundleForm({ name: bundle.name, description: bundle.description, price_cents: bundle.price_cents.toString(), product_ids: [] });
+    setBundleFormError(null);
+    setBundleModalOpen(true);
+    try {
+      const [productsRes, itemsRes] = await Promise.all([
+        fetch('/api/products?mine=1&status=live'),
+        fetch(`/api/bundles/${bundle.id}`),
+      ]);
+      if (productsRes.ok && itemsRes.ok) {
+        const productsData = await productsRes.json();
+        const bundleData = await itemsRes.json();
+        setBundleProducts(productsData.products || []);
+        setBundleForm(prev => ({ ...prev, product_ids: bundleData.items?.map((i: BundleItem) => i.product_id) || [] }));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const closeBundleModal = () => {
+    setBundleModalOpen(false);
+    setEditingBundleId(null);
+  };
+
+  const toggleBundleProduct = (productId: string) => {
+    setBundleForm(prev => ({
+      ...prev,
+      product_ids: prev.product_ids.includes(productId)
+        ? prev.product_ids.filter(id => id !== productId)
+        : [...prev.product_ids, productId],
+    }));
+    setBundleFormError(null);
+  };
+
+  const calculateBundleSum = () => {
+    return bundleForm.product_ids.reduce((sum, pid) => {
+      const p = bundleProducts.find(p => p.id === pid);
+      return sum + (p?.price_usd || 0) * 100;
+    }, 0);
+  };
+
+  const handleBundleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBundleFormError(null);
+    if (bundleForm.product_ids.length < 2) {
+      setBundleFormError('Select at least 2 products for a bundle');
+      return;
+    }
+    const price = Math.round(parseFloat(bundleForm.price_cents) * 100);
+    if (isNaN(price) || price <= 0) {
+      setBundleFormError('Enter a valid bundle price');
+      return;
+    }
+    const sum = calculateBundleSum();
+    if (price >= sum) {
+      setBundleFormError('Bundle price must be lower than the sum of individual prices');
+      return;
+    }
+    setBundleFormBusy(true);
+    try {
+      const url = bundleModalMode === 'create' ? '/api/bundles' : `/api/bundles/${editingBundleId}`;
+      const method = bundleModalMode === 'create' ? 'POST' : 'PUT';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: bundleForm.name,
+          description: bundleForm.description,
+          price_cents: price,
+          product_ids: bundleForm.product_ids,
+        }),
+      });
+      if (res.ok) {
+        closeBundleModal();
+        fetchBundles();
+        fetchProducts();
+      } else {
+        const data = await res.json();
+        setBundleFormError(data.error || 'Failed to save bundle');
+      }
+    } catch {
+      setBundleFormError('Failed to save bundle');
+    } finally {
+      setBundleFormBusy(false);
+    }
+  };
+
+  const endBundle = async (id: string) => {
+    if (!confirm('End this bundle? Buyers who purchased it keep access to all items.')) return;
+    try {
+      const res = await fetch(`/api/bundles/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchBundles();
+      }
+    } catch {
+      // ignore
     }
   };
 
@@ -880,6 +1062,8 @@ function Dashboard() {
         return renderOverview();
       case 'products':
         return renderProducts();
+      case 'bundles':
+        return renderBundles();
       case 'orders':
         return renderOrders();
       case 'payouts':
@@ -914,6 +1098,11 @@ function Dashboard() {
         icon={<CreditCardGlyph />}
         label="Earnings (paid)"
         value={formatUsd(orders.filter(o => o.status === 'paid').reduce((sum, o) => sum + o.seller_usd, 0))}
+      />
+      <StatCard
+        icon={<LayersGlyph />}
+        label="Active bundles"
+        value={bundles.filter(b => b.status === 'live').length}
       />
       <StatCard
         icon={<UsersGlyph />}
@@ -963,6 +1152,183 @@ function Dashboard() {
               />
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderBundles = () => (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+        <h3>Your bundles</h3>
+        <button className="btn btn-dark" onClick={openCreateBundleModal}>
+          <PlusGlyph /> Create bundle
+        </button>
+      </div>
+      {bundlesLoading ? (
+        <div className="skeleton-table">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="panel" style={{ padding: 20 }}>
+              <div className="skeleton skeleton-text" style={{ width: '40%' }} />
+              <div className="skeleton skeleton-text" style={{ width: '20%', marginTop: 8 }} />
+              <div className="skeleton skeleton-text" style={{ width: '20%', marginTop: 8 }} />
+            </div>
+          ))}
+        </div>
+      ) : bundles.length === 0 ? (
+        <EmptyState
+          glyph={<LayersGlyph />}
+          title="No bundles yet"
+          body="Group 2+ of your products into a bundle sold at one price. Buyers get everything for less than buying separately."
+          action={{ onClick: openCreateBundleModal, label: 'Create your first bundle' }}
+        />
+      ) : (
+        <div className="panel">
+          <div className="table-wrap">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Bundle</th>
+                  <th>Items</th>
+                  <th>Price</th>
+                  <th>Orders</th>
+                  <th>Revenue</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bundles.map(b => (
+                  <tr key={b.id}>
+                    <td>
+                      <strong>{b.name}</strong>
+                      {b.description && <span style={{ display: 'block', fontSize: 12, color: 'var(--muted)', marginTop: 4, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.description}</span>}
+                    </td>
+                    <td>{b.items_count}</td>
+                    <td>{formatUsd(b.price_cents / 100)}</td>
+                    <td>{b.orders_count}</td>
+                    <td><strong>{formatUsd(b.revenue_cents / 100)}</strong></td>
+                    <td><span className={`chip badge-${b.status === 'live' ? 'live' : 'expired'}`}>{b.status}</span></td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn btn-outline btn-sm" onClick={() => openEditBundleModal(b)} title="Edit bundle">
+                          <EditGlyph />
+                        </button>
+                        {b.status === 'live' && (
+                          <button className="btn btn-outline btn-sm btn-danger" onClick={() => endBundle(b.id)} title="End bundle">
+                            <XGlyph />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Bundle modal */}
+      {bundleModalOpen && (
+        <div className="modal-overlay" onClick={closeBundleModal}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 720 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3>{bundleModalMode === 'create' ? 'Create bundle' : 'Edit bundle'}</h3>
+              <button className="btn btn-ghost btn-sm" onClick={closeBundleModal}><XGlyph /></button>
+            </div>
+            <form onSubmit={handleBundleSubmit}>
+              <div style={{ display: 'grid', gap: 16 }}>
+                <div>
+                  <label className="label">Bundle name</label>
+                  <input
+                    className="input"
+                    type="text"
+                    value={bundleForm.name}
+                    onChange={e => setBundleForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g. Complete Developer Toolkit"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="label">Description</label>
+                  <textarea
+                    className="input"
+                    value={bundleForm.description}
+                    onChange={e => setBundleForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="What&apos;s in this bundle and why it&apos;s a good deal"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <label className="label">Bundle price (USD)</label>
+                  <input
+                    className="input"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={bundleForm.price_cents}
+                    onChange={e => setBundleForm(prev => ({ ...prev, price_cents: e.target.value }))}
+                    placeholder="19.99"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="label">Products in this bundle (select 2+)</label>
+                  <div style={{ display: 'grid', gap: 8, maxHeight: 280, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
+                    {bundleProducts.length === 0 ? (
+                      <p style={{ color: 'var(--muted)', fontSize: 13.5 }}>No live products available. Publish some products first.</p>
+                    ) : (
+                      bundleProducts.map(p => {
+                        const checked = bundleForm.product_ids.includes(p.id);
+                        const itemSum = bundleForm.product_ids
+                          .filter(id => id !== p.id)
+                          .reduce((sum, pid) => sum + (bundleProducts.find(bp => bp.id === pid)?.price_usd || 0) * 100, 0);
+                        const newSum = itemSum + (p.price_usd || 0) * 100;
+                        const savings = bundleForm.price_cents ? parseFloat(bundleForm.price_cents) * 100 - newSum : 0;
+                        return (
+                          <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 10px', borderRadius: 8, background: checked ? 'var(--accent-bg)' : 'transparent', cursor: 'pointer', border: checked ? '1px solid var(--accent)' : 'none' }}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleBundleProduct(p.id)}
+                              style={{ width: 18, height: 18, accentColor: 'var(--accent)' }}
+                            />
+                            {p.cover_url && <img src={p.cover_url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6 }} />}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title}</div>
+                              <div style={{ fontSize: 12, color: 'var(--muted)' }}>{formatUsd(p.price_usd)}</div>
+                            </div>
+                            {checked && savings > 0 && (
+                              <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>Saves {formatUsd(savings / 100)}</span>
+                            )}
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                  <div style={{ marginTop: 12, fontSize: 14, color: 'var(--muted)' }}>
+                    <div>Sum of selected: <strong>{formatUsd(calculateBundleSum() / 100)}</strong></div>
+                    {bundleForm.price_cents && calculateBundleSum() > 0 && (
+                      <div style={{ color: parseFloat(bundleForm.price_cents) * 100 < calculateBundleSum() ? 'var(--accent)' : 'var(--muted)' }}>
+                        Bundle price: <strong>{formatUsd(parseFloat(bundleForm.price_cents))}</strong>
+                        {parseFloat(bundleForm.price_cents) * 100 < calculateBundleSum() && (
+                          <span style={{ marginLeft: 8, color: 'var(--accent)' }}>✓ Saves {formatUsd((calculateBundleSum() - parseFloat(bundleForm.price_cents) * 100) / 100)}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {bundleFormError && <div className="alert alert-error" style={{ fontSize: 13.5 }}>{bundleFormError}</div>}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+                  <button type="button" className="btn btn-outline" onClick={closeBundleModal}>Cancel</button>
+                  <button type="submit" className="btn btn-dark" disabled={bundleFormBusy}>
+                    {bundleFormBusy ? <LoaderGlyph /> : bundleModalMode === 'create' ? 'Create bundle' : 'Save changes'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
